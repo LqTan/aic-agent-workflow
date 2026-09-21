@@ -1,0 +1,62 @@
+{
+  "name": "AIC Agentic Video Retrieval",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "aic-agent-search",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "8f25ad3f-4bf8-4b07-93e1-cddc56ff7a01",
+      "name": "Nhận mục tiêu người dùng",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-500, 0],
+      "webhookId": "aic-agent-search"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/kis/agent/search/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{"name": "Content-Type", "value": "application/json"}]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { query: $json.body.query || $json.query, collection_ids: $json.body.collection_ids || [], top_k: $json.body.top_k || 12, quality_threshold: $json.body.quality_threshold || 0.42, max_attempts: $json.body.max_attempts || 2 } }}",
+        "options": {}
+      },
+      "id": "bb5f55d9-b871-4cf6-a38f-a4d401acfb02",
+      "name": "Gọi AI Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-220, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "cc35a42c-3d47-46bf-810c-27b194a25c03",
+      "name": "Trả kết quả Agent",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [60, 0]
+    }
+  ],
+  "connections": {
+    "Nhận mục tiêu người dùng": {
+      "main": [[{"node": "Gọi AI Agent", "type": "main", "index": 0}]]
+    },
+    "Gọi AI Agent": {
+      "main": [[{"node": "Trả kết quả Agent", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {},
+  "settings": {"executionOrder": "v1"},
+  "active": false,
+  "versionId": "118e7723-0b59-481c-a2a5-2787862b8eb4"
+}
