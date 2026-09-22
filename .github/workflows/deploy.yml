@@ -24,6 +24,9 @@ jobs:
             context: ./backend
           - service: frontend
             context: ./frontend
+            build-args: |
+              NEXT_PUBLIC_API_BASE_URL=${{ vars.FRONTEND_API_BASE_URL || 'http://103.200.22.67:8000/api/v1' }}
+              NEXT_PUBLIC_USE_MOCKS=false
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -56,6 +59,7 @@ jobs:
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: ${{ matrix.build-args }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
