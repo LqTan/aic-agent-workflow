@@ -2,7 +2,7 @@ import { env } from "@/config/env";
 import { ApiError } from "./api-error";
 import { ApiClient } from "./abstractions/api-client.interface";
 
-export class FetchApiClient implements ApiClient { 
+export class FetchApiClient implements ApiClient {
 
     async request<TResponse>(
         path: string,
@@ -32,7 +32,7 @@ export class FetchApiClient implements ApiClient {
     }
 
     private buildUrl(path: string): string {
-        const baseUrl = env.apiBaseUrl.replace(/\$/,"");
+        const baseUrl = env.apiBaseUrl.replace(/\/$/,"");
         const normalizePath = path.startsWith("/")
             ? path
             : `/${path}`;

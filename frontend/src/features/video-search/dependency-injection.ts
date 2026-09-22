@@ -1,9 +1,11 @@
+import { env } from "@/config/env";
 import { FetchApiClient } from "@/lib/api/fetch-api-client";
-import { HttpVideoSearchService } from "./infrastructure/services/video-search.service";
 import { SearchVideoUseCase } from "./application/use-cases/search-videos.use-case";
+import { HttpVideoSearchService } from "./infrastructure/services/video-search.service";
+import { MockVideoSearchService } from "./infrastructure/mocks/services/mock-video-search.service";
 
-const apiClient = new FetchApiClient();
-
-const videoSearchService = new HttpVideoSearchService(apiClient);
+const videoSearchService = env.useMocks
+    ? new MockVideoSearchService()
+    : new HttpVideoSearchService(new FetchApiClient());
 
 export const searchVideoUseCase = new SearchVideoUseCase(videoSearchService);

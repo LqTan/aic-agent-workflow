@@ -1,4 +1,4 @@
-import { VdieoSearchResponse, VideoSearchRequest } from "../../domain/models/video-search.model";
+import { VideoSearchRequest, VideoSearchResponse } from "../../domain/models/video-search.model";
 import { VideoSearchService } from "../abstractions/video-search-service.interface";
 
 export class SearchVideoUseCase {
@@ -8,7 +8,7 @@ export class SearchVideoUseCase {
 
     async execute(
         request: VideoSearchRequest,
-    ): Promise<VdieoSearchResponse> {
+    ): Promise<VideoSearchResponse> {
         const query = request.query.trim();
 
         if (!query) {

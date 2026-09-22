@@ -1,4 +1,4 @@
-import { VdieoSearchResponse, VideoSearchRequest } from "../../domain/models/video-search.model";
+import { VideoSearchRequest, VideoSearchResponse } from "../../domain/models/video-search.model";
 import { VideoSearchRequestDto, VideoSearchResponseDto } from "../dtos/video-search.dto";
 
 export class VideoSearchMapper {
@@ -16,7 +16,7 @@ export class VideoSearchMapper {
 
     static toDomain(
         dto: VideoSearchResponseDto,
-    ): VdieoSearchResponse {
+    ): VideoSearchResponse {
         return {
             goal: dto.goal,
 

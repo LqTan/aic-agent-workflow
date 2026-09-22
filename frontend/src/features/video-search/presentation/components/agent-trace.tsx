@@ -1,6 +1,6 @@
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { VideoSearchResponse } from "../../domain/models/video-search.model";
-import { Badge } from "lucide-react";
 
 interface AgentTraceProps {
     data: VideoSearchResponse;
