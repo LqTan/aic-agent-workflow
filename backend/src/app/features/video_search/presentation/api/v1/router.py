@@ -69,8 +69,7 @@ async def search_endpoint(
     response = use_case.execute(video_request)
     response["results"] = format_results_with_urls(
         results=response["results"],
-        request=request,
-        data_root=settings.resolved_data_root(),
+        source=request,
     )
     return VideoSearchResponseSchema(**response)
 
@@ -96,8 +95,7 @@ async def agent_search_endpoint(
     response = await use_case.execute(video_request)
     response["results"] = format_results_with_urls(
         results=response["results"],
-        request=request,
-        data_root=settings.resolved_data_root(),
+        source=request,
     )
     return AgentSearchResponseSchema(**response)
 

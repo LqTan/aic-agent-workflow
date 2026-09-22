@@ -31,6 +31,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    prepare = subparsers.add_parser(
+        "prepare-data",
+        help="Generate manifest.csv + collection.json (delegates to data_pipeline.cli).",
+    )
+    prepare.add_argument("--data-root", type=Path, default=Path("./data"))
+    prepare.add_argument("--manifest", type=Path)
+    prepare.add_argument("--collection-output", type=Path)
+    prepare.add_argument("--skip-collection", action="store_true")
+
     build = subparsers.add_parser("build-index", help="Build all search artifacts")
     build.add_argument(
         "--data-root",
@@ -70,6 +79,22 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == "prepare-data":
+        from app.features.data_pipeline.cli import build_parser as pipeline_parser
+        from app.features.data_pipeline.cli import main as pipeline_main
+
+        pipeline_argv = ["prepare-data"]
+        if args.data_root:
+            pipeline_argv += ["--data-root", str(args.data_root)]
+        if args.manifest:
+            pipeline_argv += ["--manifest", str(args.manifest)]
+        if args.collection_output:
+            pipeline_argv += ["--collection-output", str(args.collection_output)]
+        if args.skip_collection:
+            pipeline_argv += ["--skip-collection"]
+        # Sanity check: parser exists for type hint.
+        _ = pipeline_parser
+        return pipeline_main(pipeline_argv)
     if args.command == "build-index":
         options = BuildOptions(
             pca_dimensions=args.pca_dim,

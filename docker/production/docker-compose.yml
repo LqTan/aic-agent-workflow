@@ -2,9 +2,12 @@ name: aic-production
 
 x-backend-env: &backend-env
   DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-aic}:${POSTGRES_PASSWORD:-aic}@db:5432/${POSTGRES_DB:-aic}
-  KIS_DATA_ROOT: /data/aic
+  # Inside the container the AIC dataset is mounted at /data.
+  KIS_DATA_ROOT: /data
   KIS_INDEX_ROOT: /data/search_index
-  KIS_DEMO_MODE: ${KIS_DEMO_MODE:-true}
+  KIS_DOMAIN_TAXONOMY: /data/search_index/taxonomy.json
+  # Real search by default — flip to `true` to bypass torch + open_clip_torch.
+  KIS_DEMO_MODE: ${KIS_DEMO_MODE:-false}
   KIS_CLIP_MODEL: ViT-B-32
   KIS_CLIP_PRETRAINED: openai
   KIS_LLM_API_KEY: ${KIS_LLM_API_KEY:-}
@@ -39,9 +42,13 @@ services:
       <<: *backend-env
     ports:
       - "${BACKEND_PORT:-8000}:8000"
+    # Bind mounts from the host so the host's data/ folder (manifest, clip
+    # features, keyframes, objects, videos) becomes /data inside the
+    # container. The repo's data/search_index/ directory is created by
+    # `prepare-data` + `build-index` and re-used across runs.
     volumes:
-      - backend_index:/data/search_index
-      - backend_data:/data/aic
+      - ../../data:/data
+      - ../../data/search_index:/data/search_index
     depends_on:
       db:
         condition: service_healthy
@@ -86,6 +93,4 @@ services:
 
 volumes:
   postgres_data:
-  backend_index:
-  backend_data:
   n8n_data:

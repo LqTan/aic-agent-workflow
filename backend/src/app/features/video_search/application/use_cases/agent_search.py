@@ -45,7 +45,7 @@ class AgentSearchUseCase:
 
         response = agent_output["response"]
         results = [_to_result(item, request.top_k) for item in agent_output["raw_results"]]
-        response.count = len(results)
+        count = len(results)
 
         payload = {
             "goal": response.goal,
@@ -55,7 +55,7 @@ class AgentSearchUseCase:
             "decision": response.decision,
             "quality_score": response.quality_score,
             "filters": {"collection_ids": response.filters_collection_ids},
-            "count": response.count,
+            "count": count,
             "results": [asdict(result) for result in results],
         }
 
@@ -67,7 +67,7 @@ class AgentSearchUseCase:
                 trace=response.trace,
                 decision=response.decision,
                 quality_score=response.quality_score,
-                count=response.count,
+                count=count,
                 results=results,
                 filters_collection_ids=response.filters_collection_ids,
             )

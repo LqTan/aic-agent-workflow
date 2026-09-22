@@ -12,22 +12,7 @@ def list_runs(limit: int = 50) -> dict:
         rows = session.exec(statement).all()
     return {
         "total": len(rows),
-        "runs": [
-            {
-                "id": row.id,
-                "goal": row.goal,
-                "query": row.query,
-                "timestamp": row.timestamp.isoformat(),
-                "qualityScore": row.quality_score,
-                "decision": row.decision,
-                "resultCount": row.result_count,
-                "attempts": row.attempts,
-                "durationMs": row.duration_ms,
-                "collectionIds": list(row.collection_ids or []),
-                "planner": row.planner,
-            }
-            for row in rows
-        ],
+        "runs": [_summary(row) for row in rows],
     }
 
 
@@ -36,20 +21,26 @@ def get_run(run_id: str) -> dict | None:
         row = session.get(SearchRunORM, run_id)
         if row is None:
             return None
-        return {
-            "id": row.id,
-            "goal": row.goal,
-            "query": row.query,
-            "timestamp": row.timestamp.isoformat(),
-            "qualityScore": row.quality_score,
-            "decision": row.decision,
-            "resultCount": row.result_count,
-            "attempts": row.attempts,
-            "durationMs": row.duration_ms,
-            "collectionIds": list(row.collection_ids or []),
-            "planner": row.planner,
-            "plan": row.plan,
-            "trace": row.trace,
-            "attempt_details": row.attempt_details,
-            "results": row.results,
-        }
+    return {
+        **_summary(row),
+        "plan": row.plan,
+        "trace": row.trace,
+        "attemptDetails": row.attempt_details,
+        "results": row.results,
+    }
+
+
+def _summary(row) -> dict:
+    return {
+        "id": row.id,
+        "goal": row.goal,
+        "query": row.query,
+        "timestamp": row.timestamp.isoformat(),
+        "qualityScore": row.quality_score,
+        "decision": row.decision,
+        "resultCount": row.result_count,
+        "attempts": row.attempts,
+        "durationMs": row.duration_ms,
+        "collectionIds": list(row.collection_ids or []),
+        "planner": row.planner,
+    }

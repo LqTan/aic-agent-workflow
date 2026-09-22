@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy import Column
 from sqlalchemy.types import JSON
@@ -13,7 +13,9 @@ class SearchRunORM(SQLModel, table=True):
     id: str = Field(primary_key=True, max_length=64)
     goal: str = Field(max_length=500, index=True)
     query: str = Field(max_length=500)
-    timestamp: datetime = Field(default_factory=datetime.utcnow, index=True)
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(UTC), index=True
+    )
     quality_score: float = Field(default=0.0)
     decision: str = Field(max_length=20, index=True)
     result_count: int = Field(default=0)

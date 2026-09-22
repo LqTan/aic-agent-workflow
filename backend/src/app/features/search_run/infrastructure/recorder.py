@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 
 from app.core.config import Settings
 from app.features.search_run.domain.models import SearchRunRecord
@@ -68,7 +68,7 @@ def _build_record(
         id=record_id,
         goal=response.goal,
         query=request.query,
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.now(UTC),
         quality_score=response.quality_score,
         decision=response.decision,
         result_count=response.count,

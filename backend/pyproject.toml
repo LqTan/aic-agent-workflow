@@ -33,6 +33,13 @@ dev = [
     "mypy>=1.13.0",
 ]
 
+[project.scripts]
+aic-dev = "app.cli:serve"
+aic-prepare-data = "app.cli:prepare_data"
+aic-build-index = "app.cli:build_index"
+aic-lint = "app.cli:lint"
+aic-test = "app.cli:test"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

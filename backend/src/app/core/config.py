@@ -20,7 +20,7 @@ class Settings(BaseSettings):
         alias="DATABASE_URL",
     )
 
-    kis_data_root: Path = Field(default=Path("./data/aic"), alias="KIS_DATA_ROOT")
+    kis_data_root: Path = Field(default=Path("./data"), alias="KIS_DATA_ROOT")
     kis_index_root: Path = Field(
         default=Path("./data/search_index"),
         alias="KIS_INDEX_ROOT",
@@ -45,10 +45,27 @@ class Settings(BaseSettings):
     app_host: str = Field(default="0.0.0.0", alias="APP_HOST")
     app_port: int = Field(default=8000, alias="APP_PORT")
     app_log_level: str = Field(default="INFO", alias="APP_LOG_LEVEL")
-    app_cors_origins: list[str] = Field(
-        default_factory=lambda: ["http://localhost:3000"],
+    app_cors_origins: str = Field(
+        default="http://localhost:3000",
         alias="APP_CORS_ORIGINS",
     )
+    app_public_base_url: str = Field(
+        default="http://localhost:8000",
+        alias="APP_PUBLIC_BASE_URL",
+    )
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        """Parse ``app_cors_origins`` (JSON array, comma string, or single url)."""
+        value = (self.app_cors_origins or "").strip()
+        if not value:
+            return []
+        if value.startswith("["):
+            import json
+
+            parsed = json.loads(value)
+            return [str(item).strip() for item in parsed if str(item).strip()]
+        return [item.strip() for item in value.split(",") if item.strip()]
 
     def resolved_data_root(self) -> Path:
         path = Path(self.kis_data_root)

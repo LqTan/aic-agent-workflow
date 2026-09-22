@@ -9,54 +9,361 @@
         "options": {}
       },
       "id": "8f25ad3f-4bf8-4b07-93e1-cddc56ff7a01",
-      "name": "Nhận mục tiêu người dùng",
+      "name": "Webhook nhận goal",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [-500, 0],
+      "position": [-560, 0],
       "webhookId": "aic-agent-search"
     },
     {
       "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a1",
+              "name": "current_query",
+              "value": "={{ $json.body.query || $json.query }}",
+              "type": "string"
+            },
+            {
+              "id": "a2",
+              "name": "collection_ids",
+              "value": "={{ $json.body.collection_ids || $json.collection_ids || [] }}",
+              "type": "array"
+            },
+            {
+              "id": "a3",
+              "name": "top_k",
+              "value": "={{ $json.body.top_k || $json.top_k || 12 }}",
+              "type": "number"
+            },
+            {
+              "id": "a4",
+              "name": "quality_threshold",
+              "value": "={{ $json.body.quality_threshold || $json.quality_threshold || 0.42 }}",
+              "type": "number"
+            },
+            {
+              "id": "a5",
+              "name": "attempt",
+              "value": "=1",
+              "type": "number"
+            },
+            {
+              "id": "a6",
+              "name": "max_attempts",
+              "value": "={{ $json.body.max_attempts || $json.max_attempts || 2 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c0ffee00-0001-4000-8000-000000000001",
+      "name": "Khởi tạo ngữ cảnh",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [-340, 0]
+    },
+    {
+      "parameters": {
         "method": "POST",
-        "url": "http://backend:8000/api/kis/agent/search/",
+        "url": "http://backend:8000/api/v1/kis/tools/planner",
         "sendHeaders": true,
         "headerParameters": {
-          "parameters": [{"name": "Content-Type", "value": "application/json"}]
+          "parameters": [
+            {"name": "Content-Type", "value": "application/json"}
+          ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { query: $json.body.query || $json.query, collection_ids: $json.body.collection_ids || [], top_k: $json.body.top_k || 12, quality_threshold: $json.body.quality_threshold || 0.42, max_attempts: $json.body.max_attempts || 2 } }}",
+        "jsonBody": "={{ { query: $('Khởi tạo ngữ cảnh').item.json.current_query, collection_ids: $('Khởi tạo ngữ cảnh').item.json.collection_ids } }}",
         "options": {}
       },
-      "id": "bb5f55d9-b871-4cf6-a38f-a4d401acfb02",
-      "name": "Gọi AI Agent",
+      "id": "c0ffee00-0001-4000-8000-000000000002",
+      "name": "Planner tool",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [-220, 0]
+      "position": [-120, -160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/v1/kis/tools/retrieval",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Content-Type", "value": "application/json"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { query: $('Khởi tạo ngữ cảnh').item.json.current_query, collection_ids: $('Khởi tạo ngữ cảnh').item.json.collection_ids, top_k: $('Khởi tạo ngữ cảnh').item.json.top_k, enrich_urls: true } }}",
+        "options": {}
+      },
+      "id": "c0ffee00-0001-4000-8000-000000000003",
+      "name": "Retrieval tool",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [120, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/v1/kis/tools/validation",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Content-Type", "value": "application/json"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { plan: $('Planner tool').item.json.plan, results: $('Retrieval tool').item.json.results, threshold: $('Khởi tạo ngữ cảnh').item.json.quality_threshold } }}",
+        "options": {}
+      },
+      "id": "c0ffee00-0001-4000-8000-000000000004",
+      "name": "Validation tool",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [340, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"},
+          "conditions": [
+            {
+              "id": "if1",
+              "leftValue": "={{ $('Validation tool').item.json.accepted }}",
+              "rightValue": true,
+              "operator": {"type": "boolean", "operation": "true", "singleValue": true}
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c0ffee00-0001-4000-8000-000000000005",
+      "name": "Đạt ngưỡng?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [560, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/v1/kis/agent/search/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Content-Type", "value": "application/json"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { query: $('Khởi tạo ngữ cảnh').item.json.current_query, collection_ids: $('Khởi tạo ngữ cảnh').item.json.collection_ids, top_k: $('Khởi tạo ngữ cảnh').item.json.top_k, quality_threshold: $('Khởi tạo ngữ cảnh').item.json.quality_threshold, max_attempts: 1 } }}",
+        "options": {}
+      },
+      "id": "c0ffee00-0001-4000-8000-000000000006",
+      "name": "Persist run (agent)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [800, -160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://backend:8000/api/v1/kis/tools/finalize/{{ $('Persist run (agent)').item.json.id || $('Persist run (agent)').first().json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Content-Type", "value": "application/json"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}",
+        "options": {}
+      },
+      "id": "c0ffee00-0001-4000-8000-000000000007",
+      "name": "Finalize run (enrich URLs)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1020, -160]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"},
+          "conditions": [
+            {
+              "id": "if2",
+              "leftValue": "={{ $('Khởi tạo ngữ cảnh').item.json.attempt < $('Khởi tạo ngữ cảnh').item.json.max_attempts }}",
+              "rightValue": true,
+              "operator": {"type": "boolean", "operation": "true", "singleValue": true}
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c0ffee00-0001-4000-8000-000000000008",
+      "name": "Còn lượt retry?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [800, 160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/v1/kis/tools/rewrite",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Content-Type", "value": "application/json"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { plan: $('Planner tool').item.json.plan, attempt: $('Khởi tạo ngữ cảnh').item.json.attempt } }}",
+        "options": {}
+      },
+      "id": "c0ffee00-0001-4000-8000-000000000009",
+      "name": "Rewrite query",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1020, 320]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1",
+              "name": "current_query",
+              "value": "={{ $('Rewrite query').item.json.next_query }}",
+              "type": "string"
+            },
+            {
+              "id": "b2",
+              "name": "attempt",
+              "value": "={{ $('Khởi tạo ngữ cảnh').item.json.attempt + 1 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c0ffee00-0001-4000-8000-000000000010",
+      "name": "Tăng attempt, cập nhật query",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1240, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/v1/kis/agent/search/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Content-Type", "value": "application/json"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { query: $('Khởi tạo ngữ cảnh').item.json.current_query, collection_ids: $('Khởi tạo ngữ cảnh').item.json.collection_ids, top_k: $('Khởi tạo ngữ cảnh').item.json.top_k, quality_threshold: $('Khởi tạo ngữ cảnh').item.json.quality_threshold, max_attempts: 1 } }}",
+        "options": {}
+      },
+      "id": "c0ffee00-0001-4000-8000-000000000011",
+      "name": "Persist run (best effort)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [800, 480]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/v1/kis/tools/finalize/{{ $('Persist run (best effort)').item.json.id || $('Persist run (best effort)').first().json.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Content-Type", "value": "application/json"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}",
+        "options": {}
+      },
+      "id": "c0ffee00-0001-4000-8000-000000000012",
+      "name": "Finalize run (best effort)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1020, 480]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ $json }}",
+        "responseBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
       "id": "cc35a42c-3d47-46bf-810c-27b194a25c03",
-      "name": "Trả kết quả Agent",
+      "name": "Trả kết quả cho client",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.4,
-      "position": [60, 0]
+      "position": [1280, 0]
     }
   ],
   "connections": {
-    "Nhận mục tiêu người dùng": {
-      "main": [[{"node": "Gọi AI Agent", "type": "main", "index": 0}]]
+    "Webhook nhận goal": {
+      "main": [[{"node": "Khởi tạo ngữ cảnh", "type": "main", "index": 0}]]
     },
-    "Gọi AI Agent": {
-      "main": [[{"node": "Trả kết quả Agent", "type": "main", "index": 0}]]
+    "Khởi tạo ngữ cảnh": {
+      "main": [[{"node": "Planner tool", "type": "main", "index": 0}, {"node": "Retrieval tool", "type": "main", "index": 0}]]
+    },
+    "Planner tool": {
+      "main": [[{"node": "Retrieval tool", "type": "main", "index": 0}]]
+    },
+    "Retrieval tool": {
+      "main": [[{"node": "Validation tool", "type": "main", "index": 0}]]
+    },
+    "Validation tool": {
+      "main": [[{"node": "Đạt ngưỡng?", "type": "main", "index": 0}]]
+    },
+    "Đạt ngưỡng?": {
+      "main": [
+        [{"node": "Persist run (agent)", "type": "main", "index": 0}],
+        [{"node": "Còn lượt retry?", "type": "main", "index": 0}]
+      ]
+    },
+    "Persist run (agent)": {
+      "main": [[{"node": "Finalize run (enrich URLs)", "type": "main", "index": 0}]]
+    },
+    "Finalize run (enrich URLs)": {
+      "main": [[{"node": "Trả kết quả cho client", "type": "main", "index": 0}]]
+    },
+    "Còn lượt retry?": {
+      "main": [
+        [{"node": "Persist run (best effort)", "type": "main", "index": 0}],
+        [{"node": "Rewrite query", "type": "main", "index": 0}]
+      ]
+    },
+    "Persist run (best effort)": {
+      "main": [[{"node": "Finalize run (best effort)", "type": "main", "index": 0}]]
+    },
+    "Finalize run (best effort)": {
+      "main": [[{"node": "Trả kết quả cho client", "type": "main", "index": 0}]]
+    },
+    "Rewrite query": {
+      "main": [[{"node": "Tăng attempt, cập nhật query", "type": "main", "index": 0}]]
+    },
+    "Tăng attempt, cập nhật query": {
+      "main": [[{"node": "Retrieval tool", "type": "main", "index": 0}]]
     }
   },
-  "pinData": {},
   "settings": {"executionOrder": "v1"},
   "active": false,
-  "versionId": "118e7723-0b59-481c-a2a5-2787862b8eb4"
+  "versionId": "aic-agent-search-v2"
 }

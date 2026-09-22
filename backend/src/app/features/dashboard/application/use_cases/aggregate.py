@@ -1,12 +1,49 @@
 from __future__ import annotations
 
+import csv
+import threading
 from collections import defaultdict
-from datetime import datetime, timedelta
+from collections.abc import Iterable
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from sqlmodel import Session, select
 
+from app.core.config import get_settings
 from app.features.search_run.infrastructure.orm import SearchRunORM
 from app.shared.db.session import get_engine
+
+_dataset_lock = threading.Lock()
+_dataset_cache: dict[str, tuple[int, list[str]]] = {}
+
+
+def _load_dataset_stats(manifest_path: Path) -> tuple[int, list[str]]:
+    """Return ``(unique_video_count, sorted_unique_collection_ids)`` from manifest.csv."""
+    if not manifest_path.is_file():
+        return 0, []
+    video_ids: set[str] = set()
+    collection_ids: set[str] = set()
+    with manifest_path.open(encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            if row.get("video_id"):
+                video_ids.add(row["video_id"])
+            if row.get("collection_id"):
+                collection_ids.add(row["collection_id"])
+    return len(video_ids), sorted(collection_ids)
+
+
+def dataset_stats() -> tuple[int, list[str]]:
+    settings = get_settings()
+    manifest_path = Path(settings.resolved_data_root()) / "manifest.csv"
+    cache_key = str(manifest_path)
+    with _dataset_lock:
+        cached = _dataset_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        stats = _load_dataset_stats(manifest_path)
+        _dataset_cache[cache_key] = stats
+        return stats
 
 
 def build_overview(limit: int = 7) -> dict:
@@ -29,7 +66,7 @@ def build_overview(limit: int = 7) -> dict:
         bucket["_total"] += row.quality_score
         bucket["queryCount"] += 1
 
-    today = datetime.utcnow().date()
+    today = datetime.now(UTC).date()
     quality_trend: list[dict] = []
     for offset in range(limit - 1, -1, -1):
         date = (today - timedelta(days=offset)).isoformat()
@@ -41,6 +78,19 @@ def build_overview(limit: int = 7) -> dict:
             "queryCount": bucket["queryCount"],
         })
 
+    # Dataset stats: prefer manifest (source of truth), fall back to persisted
+    # run results when manifest is missing (e.g. demo mode, no dataset).
+    total_videos, all_collections = dataset_stats()
+    if total_videos == 0:
+        total_videos, all_collections = _stats_from_persisted_results(rows)
+
+    # Show only collections actually touched by recent runs plus the global
+    # count, so the UI surfaces real activity without confusing totals.
+    collections_touched = sorted(
+        {c for row in rows for c in (row.collection_ids or [])}
+    )
+    total_collections = max(len(all_collections), len(collections_touched))
+
     return {
         "totalQueries": total,
         "acceptedQueries": accepted,
@@ -48,9 +98,9 @@ def build_overview(limit: int = 7) -> dict:
         "averageQualityScore": avg_quality,
         "averageAttempts": avg_attempts,
         "averageDurationMs": avg_latency,
-        "totalIndexedVideos": 0,
-        "totalCollections": len({row.planner for row in rows}),
-        "lastUpdatedAt": datetime.utcnow().isoformat(),
+        "totalIndexedVideos": total_videos,
+        "totalCollections": total_collections,
+        "lastUpdatedAt": datetime.now(UTC).isoformat(),
         "recentRuns": [
             {
                 "id": row.id,
@@ -67,3 +117,17 @@ def build_overview(limit: int = 7) -> dict:
         ],
         "qualityTrend": quality_trend,
     }
+
+
+def _stats_from_persisted_results(rows: Iterable[SearchRunORM]) -> tuple[int, list[str]]:
+    video_ids: set[str] = set()
+    collection_ids: set[str] = set()
+    for row in rows:
+        for result in row.results or []:
+            video_id = result.get("video_id")
+            collection_id = result.get("collection_id")
+            if video_id:
+                video_ids.add(video_id)
+            if collection_id:
+                collection_ids.add(collection_id)
+    return len(video_ids), sorted(collection_ids)

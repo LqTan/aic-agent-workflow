@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
+from app.core.config import get_settings
 from app.core.errors import SearchServiceUnavailable
 
 from .domains import DEFAULT_TAXONOMY_PATH, DomainCatalog, DomainRouter, Route
@@ -317,7 +318,13 @@ _index_lock = threading.Lock()
 
 def get_index(path: Path | str | None = None) -> HybridSearchIndex:
     global _index_cache, _index_cache_path
-    resolved = Path(path or os.getenv("KIS_INDEX_ROOT", DEFAULT_INDEX_DIR)).resolve()
+    if path is None:
+        # Read from Settings (single source of truth). This respects
+        # ``../data/search_index`` style relative paths resolved against
+        # uvicorn's CWD via ``Settings.resolved_index_root()``.
+        resolved = get_settings().resolved_index_root()
+    else:
+        resolved = Path(path).resolve()
     if _index_cache is None or _index_cache_path != resolved:
         with _index_lock:
             if _index_cache is None or _index_cache_path != resolved:
