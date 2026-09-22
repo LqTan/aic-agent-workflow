@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Build artifacts
+dist/
+build/
+
+# Local data and indexes
+data/
+search_index/
+*.npy
+
+# IDE
+.idea/
+.vscode/
+
+# Env
+.env
+.env.local
