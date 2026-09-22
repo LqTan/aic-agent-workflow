@@ -35,9 +35,8 @@ services:
     restart: unless-stopped
 
   backend:
-    build:
-      context: ../../backend
-      dockerfile: Dockerfile
+    image: ghcr.io/lqtan/aic-backend:latest
+    pull_policy: always
     environment:
       <<: *backend-env
     ports:
@@ -61,12 +60,8 @@ services:
     restart: unless-stopped
 
   frontend:
-    build:
-      context: ../../frontend
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
-        NEXT_PUBLIC_USE_MOCKS: ${NEXT_PUBLIC_USE_MOCKS:-false}
+    image: ghcr.io/lqtan/aic-frontend:latest
+    pull_policy: always
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
