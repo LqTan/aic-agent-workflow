@@ -77,7 +77,7 @@ jobs:
           command_timeout: 10m
           script: |
             set -e
-            cd /services/aic
+            cd /root/services/aic
 
             echo "=== pull latest repo ==="
             git fetch --all
