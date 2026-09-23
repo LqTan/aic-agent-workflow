@@ -67,6 +67,7 @@ jobs:
     name: Deploy to VPS
     needs: build-and-push
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
@@ -74,7 +75,7 @@ jobs:
           host: 103.200.22.67
           username: root
           key: ${{ secrets.VPS_SSH_KEY }}
-          command_timeout: 10m
+          command_timeout: 30m
           script: |
             set -e
             cd /root/services/aic
@@ -94,12 +95,23 @@ jobs:
             docker compose -f docker/production/docker-compose.yml \
               -p aic-production up -d --remove-orphans backend frontend
 
+            echo "=== cleanup old aic images ==="
+            docker images ghcr.io/lqtan/aic-* \
+              --format '{{.Repository}}:{{.Tag}} {{.ID}}' \
+            | while read -r repo_tag id; do
+                running="$(docker ps --format '{{.Image}}' || true)"
+                case " ${running} " in
+                  *" ${repo_tag} "*|*" ${id} "*) continue ;;
+                esac
+                docker rmi "$id" >/dev/null 2>&1 || true
+            done
+
             echo "=== health check (best-effort) ==="
             sleep 10
             docker compose -f docker/production/docker-compose.yml \
               -p aic-production ps
 
-            echo "=== cleanup ==="
+            echo "=== dangling prune (safety net) ==="
             docker image prune -f
 
             echo "=== done ==="
