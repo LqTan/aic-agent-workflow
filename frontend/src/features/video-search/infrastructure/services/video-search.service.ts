@@ -1,7 +1,7 @@
 import { ApiClient } from "@/lib/api/abstractions/api-client.interface";
 import { VideoSearchService } from "../../application/abstractions/video-search-service.interface";
 import { VideoSearchRequest, VideoSearchResponse } from "../../domain/models/video-search.model";
-import { VideoSearchResponseDto } from "../dtos/video-search.dto";
+import { LocalSearchResponseDto } from "../dtos/local-search.dto";
 import { VideoSearchMapper } from "../mappers/video-search.mapper";
 
 export class HttpVideoSearchService implements VideoSearchService {
@@ -10,16 +10,17 @@ export class HttpVideoSearchService implements VideoSearchService {
     ) {}
 
     async search(request: VideoSearchRequest): Promise<VideoSearchResponse> {
-        const response = await this.apiClient.request<VideoSearchResponseDto>(
-            "/kis/agent/search/",
+        const response = await this.apiClient.request<LocalSearchResponseDto>(
+            "/api/search",
             {
                 method: "POST",
-                body: JSON.stringify(
-                    VideoSearchMapper.toReqestDto(request),
-                ),
+                body: JSON.stringify({
+                    query: request.query,
+                    top_k: request.topK ?? 12,
+                }),
             },
         );
 
-        return VideoSearchMapper.toDomain(response);
+        return VideoSearchMapper.fromLocalSearch(response);
     }
 }

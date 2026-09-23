@@ -65,6 +65,14 @@ jobs:
 
       - name: Build frontend (static export)
         working-directory: frontend
+        env:
+          # The Electron bundle always uses the local FastAPI backend on
+          # port 9000. We bake this URL in so the HttpVideoSearchService
+          # knows where to call when the user toggles "Dùng data thật".
+          NEXT_PUBLIC_API_BASE_URL: "http://localhost:9000"
+          # Default UI to mock data; the search page exposes a runtime
+          # toggle that swaps in the real HttpVideoSearchService.
+          NEXT_PUBLIC_USE_MOCKS: "true"
         run: npm run build
 
       - name: Install electron deps

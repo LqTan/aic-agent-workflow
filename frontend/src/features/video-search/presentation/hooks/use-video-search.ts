@@ -1,12 +1,29 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { VideoSearchResponse, VideoSearchRequest } from "../../domain/models/video-search.model";
 import { searchVideoUseCase } from "../../dependency-injection";
+import { HttpVideoSearchService } from "../../infrastructure/services/video-search.service";
+import { FetchApiClient } from "@/lib/api/fetch-api-client";
+import { SearchVideoUseCase } from "../../application/use-cases/search-videos.use-case";
 
-export function useVideoSearch() {
+interface UseVideoSearchOptions {
+    useReal?: boolean;
+}
+
+export function useVideoSearch(options: UseVideoSearchOptions = {}) {
+    const { useReal = false } = options;
     const [data, setData] = useState<VideoSearchResponse | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<Error | null>(null);
+
+    const useCase = useMemo(() => {
+        if (useReal) {
+            return new SearchVideoUseCase(
+                new HttpVideoSearchService(new FetchApiClient()),
+            );
+        }
+        return searchVideoUseCase;
+    }, [useReal]);
 
     const search = async (
         request: VideoSearchRequest,
@@ -15,7 +32,7 @@ export function useVideoSearch() {
             setIsLoading(true);
             setError(null);
             setData(null);
-            const result = await searchVideoUseCase.execute(request);
+            const result = await useCase.execute(request);
 
             setData(result);
         } catch (error) {

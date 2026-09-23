@@ -1,5 +1,6 @@
 import { VideoSearchRequest, VideoSearchResponse } from "../../domain/models/video-search.model";
 import { VideoSearchRequestDto, VideoSearchResponseDto } from "../dtos/video-search.dto";
+import { LocalSearchResponseDto } from "../dtos/local-search.dto";
 
 export class VideoSearchMapper {
     static toReqestDto(
@@ -72,6 +73,71 @@ export class VideoSearchMapper {
                         domain: result.score_components.domain,
                     }
                     : undefined,
+            })),
+        };
+    }
+
+    /**
+     * Wrap the local FastAPI backend's `/api/search` response (a flat list of
+     * keyframe hits) into the shape the rest of the frontend expects.
+     */
+    static fromLocalSearch(
+        dto: LocalSearchResponseDto,
+    ): VideoSearchResponse {
+        const topScore = dto.results[0]?.score ?? 0;
+        const qualityThreshold = 0.42;
+
+        return {
+            goal: dto.query,
+
+            plan: {
+                intent: dto.query,
+                originalQuery: dto.query,
+                searchQuery: dto.query,
+                objects: [],
+                actions: [],
+                scenes: [],
+                collectionIds: [],
+                planner: "local-clip",
+            },
+
+            attempts: [
+                {
+                    attempt: 1,
+                    query: dto.query,
+                    resultCount: dto.count,
+                    qualityScore: topScore,
+                    threshold: qualityThreshold,
+                    accepted: dto.count > 0 && topScore >= qualityThreshold,
+                },
+            ],
+
+            trace: [
+                {
+                    step: "local-search",
+                    status: "completed",
+                    detail: { count: dto.count, query: dto.query },
+                },
+            ],
+
+            decision: dto.count > 0 ? "accepted" : "best_effort",
+            qualityScore: topScore,
+            count: dto.count,
+
+            results: dto.results.map((result) => ({
+                rank: result.rank,
+                keyframeId: result.keyframe_id,
+                collectionId: result.collection_id,
+                videoId: result.video_id,
+                frameNumber: result.frame_number,
+                frameId: result.frame_id,
+                timestampMs: result.timestamp_ms,
+                imageUrl: result.image_url,
+                videoUrl: result.video_url,
+                score: result.score,
+                domains: [],
+                routeDomains: [],
+                matchesObjects: [],
             })),
         };
     }

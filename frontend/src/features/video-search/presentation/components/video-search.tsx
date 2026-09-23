@@ -1,12 +1,15 @@
-"use client"
+"use client";
 
 import { useVideoSearch } from "../hooks/use-video-search"
 import { AgentTrace } from "./agent-trace";
 import { VideoSearchForm } from "./video-search-form";
 import { VideoSearchResults } from "./video-search-results";
+import { useState } from "react";
 
 export function VideoSearch() {
-    const { data, isLoading, error, search } = useVideoSearch();
+    const [useReal, setUseReal] = useState(false);
+    const { data, isLoading, error, search } = useVideoSearch({ useReal });
+
     const handleSearch = async (
         query: string,
     ): Promise<void> => {
@@ -33,6 +36,8 @@ export function VideoSearch() {
                 <VideoSearchForm
                     isLoading={isLoading}
                     onSearch={handleSearch}
+                    useReal={useReal}
+                    onToggleReal={setUseReal}
                 />
 
                 {error && (
