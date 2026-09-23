@@ -11,29 +11,43 @@ const http = require('http');
 // ---------------------------------------------------------------------------
 
 const isDev = !app.isPackaged;
-const APP_ROOT = path.dirname(__dirname);
+
+// APP_ROOT points at the directory that contains the running exe. In dev
+// that's the repo root (electron/ is one level deep), in packaged builds
+// it's the folder where the user placed clip-search-0.1.0-portable.exe.
+const APP_ROOT = isDev
+    ? path.dirname(__dirname)
+    : path.dirname(process.execPath);
 
 // In dev we run `python server.py` from the inference/ venv directly.
-// In packaged builds the bundled FastAPI is next to clip-search.exe and
-// exposes itself via the `clip-search-backend` binary name.
+// In packaged builds the bundled FastAPI lives at:
+//   <resources>/app/clip-search-backend/clip-search-backend.exe
+// PyInstaller --onedir places the actual exe inside the bundle folder, not
+// at the bundle root, so we have to point at the .exe (with platform suffix).
+const BACKEND_BIN = process.platform === 'win32'
+    ? 'clip-search-backend.exe'
+    : 'clip-search-backend';
+
 const BACKEND_CMD = isDev
     ? path.join(APP_ROOT, 'inference', '.venv', 'bin', 'python')
-    : path.join(process.resourcesPath, 'app', 'clip-search-backend');
+    : path.join(process.resourcesPath, 'app', 'clip-search-backend', BACKEND_BIN);
 
 const BACKEND_ARGS_DEV = [
     path.join(APP_ROOT, 'inference', 'server.py'),
 ];
 
+// PyInstaller --onedir needs the cwd to be the bundle folder so the
+// bundled exe can find its sibling _internal/ directory.
 const BACKEND_CWD = isDev
     ? path.join(APP_ROOT, 'inference')
-    : path.join(process.resourcesPath, 'app');
+    : path.join(process.resourcesPath, 'app', 'clip-search-backend');
 
 const BACKEND_HOST = '127.0.0.1';
 const BACKEND_PORT = Number.parseInt(process.env.CLIP_SEARCH_PORT || '9000', 10);
 
 // Time we wait for the FastAPI server to become reachable. Generous on first
 // run when the model has to load from disk.
-const STARTUP_TIMEOUT_MS = 60_000;
+const STARTUP_TIMEOUT_MS = 90_000;
 const STARTUP_POLL_MS = 500;
 
 let backendProcess = null;
@@ -54,10 +68,15 @@ function spawnBackend() {
         PORT: String(backendPort),
         DATA_ROOT: process.env.DATA_ROOT || path.join(APP_ROOT, 'data'),
         INDEX_ROOT: process.env.INDEX_ROOT || path.join(APP_ROOT, 'data', 'search_index'),
+        FRONTEND_DIST: process.env.FRONTEND_DIST || path.join(process.resourcesPath, 'app', 'frontend'),
         PYTHONIOENCODING: 'utf-8',
     };
 
     console.log(`[clip-search] spawning backend: ${BACKEND_CMD} ${args.join(' ')}`);
+    console.log(`[clip-search] cwd: ${BACKEND_CWD}`);
+    console.log(`[clip-search] DATA_ROOT: ${env.DATA_ROOT}`);
+    console.log(`[clip-search] FRONTEND_DIST: ${env.FRONTEND_DIST}`);
+
     backendProcess = spawn(BACKEND_CMD, args, {
         cwd: BACKEND_CWD,
         env,
@@ -65,21 +84,47 @@ function spawnBackend() {
         windowsHide: true,
     });
 
+    // Also tee backend stderr into a log file next to the exe so users can
+    // inspect failures even when the Electron window is gone.
+    let logStream = null;
+    if (!isDev) {
+        try {
+            logStream = fs.createWriteStream(
+                path.join(APP_ROOT, 'clip-search-backend.log'),
+                { flags: 'a' },
+            );
+        } catch (logErr) {
+            console.error('[clip-search] cannot open backend log file:', logErr.message);
+        }
+    }
+
     backendProcess.stdout.on('data', (chunk) => {
         process.stdout.write(`[backend] ${chunk}`);
+        if (logStream) {
+            logStream.write(`[stdout] ${chunk}`);
+        }
     });
     backendProcess.stderr.on('data', (chunk) => {
         process.stderr.write(`[backend] ${chunk}`);
+        if (logStream) {
+            logStream.write(`[stderr] ${chunk}`);
+        }
     });
     backendProcess.on('exit', (code, signal) => {
         console.log(`[clip-search] backend exited code=${code} signal=${signal}`);
+        if (logStream) {
+            logStream.end(`[exit] code=${code} signal=${signal}\n`);
+        }
         backendProcess = null;
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('backend-status', { running: false, code, signal });
         }
     });
     backendProcess.on('error', (err) => {
-        console.error('[clip-search] failed to spawn backend:', err);
+        console.error('[clip-search] failed to spawn backend:', err.message);
+        if (logStream) {
+            logStream.write(`[error] ${err.message}\n`);
+        }
     });
 }
 
@@ -177,10 +222,19 @@ app.whenReady().then(async () => {
             createMainWindow();
         }
         if (mainWindow) {
+            const logPath = path.join(APP_ROOT, 'clip-search-backend.log');
             mainWindow.webContents.executeJavaScript(
                 `document.body && (document.body.innerHTML = ${JSON.stringify(
-                    `<pre style="color:#fff;background:#7a1f1f;padding:24px;font-family:monospace">` +
-                    `Backend failed to start.\\n\\n${err.message}\\n\\nCheck that data/search_index/ exists next to clip-search.exe.</pre>`,
+                    `<pre style="color:#fff;background:#7a1f1f;padding:24px;font-family:monospace;white-space:pre-wrap;word-break:break-word">` +
+                    `Backend failed to start.\n\n${err.message}\n\n` +
+                    `Details:\n` +
+                    `  Backend exe: ${BACKEND_CMD}\n` +
+                    `  CWD: ${BACKEND_CWD}\n` +
+                    `  DATA_ROOT: ${process.env.DATA_ROOT || path.join(APP_ROOT, 'data')}\n\n` +
+                    `Check:\n` +
+                    `  1. clip-search-backend/ folder exists next to this exe\n` +
+                    `  2. data/search_index/ exists next to this exe\n` +
+                    `  3. Full stderr in: ${logPath}</pre>`,
                 )})`,
             );
         }
