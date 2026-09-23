@@ -35,3 +35,6 @@ code/
 .history/
 
 data/
+
+inference/models/*.onnx
+inference/models/*.onnx.data

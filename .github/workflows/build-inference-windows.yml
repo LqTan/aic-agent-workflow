@@ -1,0 +1,40 @@
+name: Build Inference Windows
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        working-directory: inference
+        run: uv sync --extra build
+
+      - name: Build
+        working-directory: inference
+        run: >
+          uv run pyinstaller
+          --noconfirm
+          --clean
+          --onedir
+          --name clip-inference
+          --add-data "models/text_encoder.onnx;models"
+          --add-data "models/text_encoder.onnx.data;models"
+          --add-data "models/tokenizer;models/tokenizer"
+          server.py
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: clip-inference-windows
+          path: inference/dist/clip-inference/

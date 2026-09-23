@@ -11,14 +11,11 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libspatialindex-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Pre-install uv + deps in a cached layer. The `[hybrid]` extra pulls in
-# `torch` + `open-clip-torch` so the real search index can run inside the
-# container. If you run in demo mode set `KIS_DEMO_MODE=true` instead and
-# the heavy deps stay on disk but unused.
 COPY pyproject.toml uv.lock* ./
+
 RUN pip install uv \
-    && uv sync --no-dev --extra hybrid --frozen \
-    || uv sync --no-dev --extra hybrid
+    && uv sync --no-dev --frozen \
+    || uv sync --no-dev
 
 COPY src ./src
 COPY alembic ./alembic
