@@ -1,0 +1,134 @@
+name: Build Electron Windows
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      PYTHONIOENCODING: utf-8
+      NEXT_OUTPUT: export
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.x"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+          cache-dependency-path: |
+            frontend/package-lock.json
+            electron/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: inference
+        run: uv sync --extra export --extra build
+
+      - name: Export ONNX
+        working-directory: inference
+        run: uv run python export_onnx.py
+
+      - name: Download tokenizer
+        working-directory: inference
+        run: uv run python download_tokenizer.py
+
+      - name: Build backend exe (PyInstaller --onedir)
+        working-directory: inference
+        run: >
+          uv run pyinstaller
+          --noconfirm
+          --clean
+          --onedir
+          --name clip-search-backend
+          --exclude-module torch
+          --exclude-module torchvision
+          --exclude-module torchaudio
+          --exclude-module triton
+          --exclude-module nvidia
+          --add-data "models/text_encoder.onnx;models"
+          --add-data "models/text_encoder.onnx.data;models"
+          --add-data "models/tokenizer;models/tokenizer"
+          server.py
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend (static export)
+        working-directory: frontend
+        run: npm run build
+
+      - name: Install electron deps
+        working-directory: electron
+        run: npm ci
+
+      - name: Build electron portable exe
+        working-directory: electron
+        run: npm run build:win
+
+      - name: Upload electron portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: clip-search-windows
+          path: electron/dist/clip-search-*-portable.exe
+
+      - name: Upload backend bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: clip-search-backend-bundle
+          path: inference/dist/clip-search-backend/
+
+  build-embedding-only:
+    name: Build standalone inference exe (legacy)
+    runs-on: windows-latest
+    env:
+      PYTHONIOENCODING: utf-8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        working-directory: inference
+        run: uv sync --extra export --extra build
+
+      - name: Export ONNX
+        working-directory: inference
+        run: uv run python export_onnx.py
+
+      - name: Download tokenizer
+        working-directory: inference
+        run: uv run python download_tokenizer.py
+
+      - name: Build
+        working-directory: inference
+        run: >
+          uv run pyinstaller
+          --noconfirm
+          --clean
+          --onefile
+          --name clip-inference
+          --add-data "models/text_encoder.onnx;models"
+          --add-data "models/text_encoder.onnx.data;models"
+          --add-data "models/tokenizer;models/tokenizer"
+          server.py
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: clip-inference-windows
+          path: inference/dist/clip-inference.exe

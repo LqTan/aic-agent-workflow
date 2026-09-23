@@ -1,0 +1,55 @@
+{
+  "name": "aic-clip-search",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local Electron shell that hosts the AIC CLIP search backend + frontend.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win --x64 --publish never",
+    "pack": "electron-builder --dir"
+  },
+  "build": {
+    "appId": "com.aic.clipsearch",
+    "productName": "AIC Clip Search",
+    "asar": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../inference/dist/clip-search-backend",
+        "to": "app/clip-search-backend",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../frontend/out",
+        "to": "app/frontend",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "clip-search-${version}-portable.exe"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Utility"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.utilities"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}

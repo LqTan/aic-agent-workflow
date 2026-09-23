@@ -38,3 +38,7 @@ data/
 
 inference/models/*.onnx
 inference/models/*.onnx.data
+inference/build/
+inference/dist/
+inference/clip-search-backend.spec
+inference/clip-inference.spec
