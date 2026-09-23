@@ -16,9 +16,17 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install
+      - name: Install export + build dependencies
         working-directory: inference
-        run: uv sync --extra build
+        run: uv sync --extra export --extra build
+
+      - name: Export ONNX
+        working-directory: inference
+        run: uv run python export_onnx.py
+
+      - name: Download tokenizer
+        working-directory: inference
+        run: uv run python download_tokenizer.py
 
       - name: Build
         working-directory: inference
@@ -26,7 +34,7 @@ jobs:
           uv run pyinstaller
           --noconfirm
           --clean
-          --onedir
+          --onefile
           --name clip-inference
           --add-data "models/text_encoder.onnx;models"
           --add-data "models/text_encoder.onnx.data;models"
@@ -37,4 +45,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: clip-inference-windows
-          path: inference/dist/clip-inference/
+          path: inference/dist/clip-inference.exe

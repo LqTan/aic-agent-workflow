@@ -18,6 +18,6 @@ export = [
     "open-clip-torch",
     "onnx"
 ]
-buid = [
+build = [
     "pyinstaller>=6.0.0"
 ]

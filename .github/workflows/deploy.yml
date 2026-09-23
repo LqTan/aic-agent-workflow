@@ -88,11 +88,11 @@ jobs:
 
             echo "=== pull images ==="
             docker compose -f docker/production/docker-compose.yml \
-              -p aic-production pull
+              -p aic-production pull backend frontend
 
             echo "=== restart services ==="
             docker compose -f docker/production/docker-compose.yml \
-              -p aic-production up -d --remove-orphans --build backend frontend
+              -p aic-production up -d --remove-orphans backend frontend
 
             echo "=== health check (best-effort) ==="
             sleep 10

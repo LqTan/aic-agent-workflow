@@ -10,11 +10,14 @@ x-backend-env: &backend-env
   KIS_DEMO_MODE: ${KIS_DEMO_MODE:-false}
   KIS_CLIP_MODEL: ViT-B-32
   KIS_CLIP_PRETRAINED: openai
+  KIS_EMBEDDING_PROVIDER: ${KIS_EMBEDDING_PROVIDER:-remote}
+  KIS_EMBEDDING_URL: ${KIS_EMBEDDING_URL:-}
+  KIS_EMBEDDING_API_KEY: ${KIS_EMBEDDING_API_KEY:-}
   KIS_LLM_API_KEY: ${KIS_LLM_API_KEY:-}
   KIS_LLM_ENDPOINT: ${KIS_LLM_ENDPOINT:-}
   KIS_LLM_MODEL: ${KIS_LLM_MODEL:-}
   APP_LOG_LEVEL: ${APP_LOG_LEVEL:-INFO}
-  APP_CORS_ORIGINS: ${APP_CORS_ORIGINS:-http://localhost:3000}
+  APP_CORS_ORIGINS: ${APP_CORS_ORIGINS:-http://103.200.22.67:3001}
 
 services:
   db:
@@ -63,7 +66,7 @@ services:
     image: ghcr.io/lqtan/aic-frontend:latest
     pull_policy: always
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "${FRONTEND_PORT:-3001}:3000"
     depends_on:
       backend:
         condition: service_healthy

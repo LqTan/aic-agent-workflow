@@ -42,6 +42,21 @@ class Settings(BaseSettings):
         alias="KIS_MAX_VIDEO_SIZE",
     )
 
+    kis_embedding_provider: str = Field(
+        default="remote",
+        alias="KIS_EMBEDDING_PROVIDER",
+    )
+
+    kis_embedding_url: str = Field(
+        default="",
+        alias="KIS_EMBEDDING_URL",
+    )
+
+    kis_embedding_api_key: str = Field(
+        default="",
+        alias="KIS_EMBEDDING_API_KEY",
+    )
+
     app_host: str = Field(default="0.0.0.0", alias="APP_HOST")
     app_port: int = Field(default=8000, alias="APP_PORT")
     app_log_level: str = Field(default="INFO", alias="APP_LOG_LEVEL")
