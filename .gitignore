@@ -42,3 +42,5 @@ inference/build/
 inference/dist/
 inference/clip-search-backend.spec
 inference/clip-inference.spec
+electron/node_modules/
+electron/dist/
