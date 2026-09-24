@@ -15,7 +15,11 @@ import json
 import logging
 import os
 import threading
+import time
+import uuid
+from collections import Counter
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -218,6 +222,111 @@ def _search_local(query_embedding: np.ndarray, top_k: int) -> list[dict]:
     return results
 
 
+# ---------------------------------------------------------------------------
+# Search history store (in-memory, lost on restart)
+# ---------------------------------------------------------------------------
+
+
+QUALITY_THRESHOLD = 0.5
+
+
+class SearchHistoryStore:
+    """Thread-safe ring buffer of recent search runs.
+
+    Drives the dashboard, history, analysis, and evaluation endpoints so
+    they all see real activity instead of mocks.
+    """
+
+    def __init__(self, max_size: int = 200) -> None:
+        self._max_size = max_size
+        self._lock = threading.Lock()
+        self._runs: list[dict] = []
+
+    def record(
+        self,
+        query: str,
+        results: list[dict],
+        duration_ms: int,
+    ) -> dict:
+        run_id = uuid.uuid4().hex
+        now = datetime.now(timezone.utc)
+        top_score = results[0]["score"] if results else 0.0
+        collection_ids = sorted({
+            r.get("collection_id", "") for r in results if r.get("collection_id")
+        })
+        entry = {
+            "run_id": run_id,
+            "goal": query,
+            "query": query,
+            "timestamp": now.isoformat(),
+            "timestamp_ms": int(now.timestamp() * 1000),
+            "results": results,
+            "top_score": top_score,
+            "duration_ms": duration_ms,
+            "decision": "accepted" if top_score >= QUALITY_THRESHOLD else "best_effort",
+            "collection_ids": collection_ids,
+        }
+        with self._lock:
+            self._runs.insert(0, entry)
+            if len(self._runs) > self._max_size:
+                self._runs = self._runs[: self._max_size]
+        return entry
+
+    def list(self, limit: int = 100) -> list[dict]:
+        with self._lock:
+            return list(self._runs[:limit])
+
+    def get(self, run_id: str) -> dict | None:
+        with self._lock:
+            for r in self._runs:
+                if r["run_id"] == run_id:
+                    return r
+        return None
+
+
+_history = SearchHistoryStore()
+
+
+def _wrap_search_response(entry: dict) -> dict:
+    """Convert a stored history entry into the VideoSearchResponse shape
+    that the frontend's analysis detail page expects."""
+    results = entry["results"]
+    return {
+        "goal": entry["query"],
+        "plan": {
+            "intent": entry["query"],
+            "original_query": entry["query"],
+            "search_query": entry["query"],
+            "objects": [],
+            "actions": [],
+            "scenes": [],
+            "collection_ids": entry["collection_ids"],
+            "planner": "local-clip",
+        },
+        "attempts": [
+            {
+                "attempt": 1,
+                "query": entry["query"],
+                "result_count": len(results),
+                "quality_score": entry["top_score"],
+                "threshold": QUALITY_THRESHOLD,
+                "accepted": entry["top_score"] >= QUALITY_THRESHOLD,
+            },
+        ],
+        "trace": [
+            {
+                "step": "local-search",
+                "status": "completed",
+                "detail": {"count": len(results), "query": entry["query"]},
+            },
+        ],
+        "decision": entry["decision"],
+        "quality_score": entry["top_score"],
+        "count": len(results),
+        "results": results,
+    }
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     try:
@@ -276,17 +385,186 @@ def search(body: SearchRequest):
     if not body.query.strip():
         raise HTTPException(status_code=400, detail="query is empty")
     try:
+        started = time.perf_counter()
         vector = _encode_texts([body.query])[0]
         results = _search_local(vector, top_k=max(1, min(body.top_k, 50)))
+        duration_ms = int((time.perf_counter() - started) * 1000)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
+    entry = _history.record(body.query, results, duration_ms)
+
     return {
         "query": body.query,
         "count": len(results),
         "results": results,
+        "run_id": entry["run_id"],
+        "duration_ms": duration_ms,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Dashboard / history / analysis / evaluation endpoints
+# ---------------------------------------------------------------------------
+
+
+def _search_run_summary(entry: dict) -> dict:
+    """Compact view of a history entry used by multiple endpoints."""
+    return {
+        "id": entry["run_id"],
+        "goal": entry["goal"],
+        "query": entry["query"],
+        "timestamp": entry["timestamp"],
+        "qualityScore": entry["top_score"],
+        "attempts": 1,
+        "decision": entry["decision"],
+        "resultCount": len(entry["results"]),
+        "durationMs": entry["duration_ms"],
+        "collectionIds": entry["collection_ids"],
+        "planner": "local-clip",
+    }
+
+
+@app.get("/api/dashboard/overview")
+def dashboard_overview():
+    _index.load()
+    history = _history.list(limit=200)
+    video_ids = {r.get("video_id", "") for r in _index.records if r.get("video_id")}
+    collection_ids = {
+        r.get("collection_id", "") for r in _index.records if r.get("collection_id")
+    }
+
+    total = len(history)
+    accepted = sum(1 for h in history if h["decision"] == "accepted")
+    avg_quality = (
+        sum(h["top_score"] for h in history) / total if total else 0.0
+    )
+    avg_duration = (
+        sum(h["duration_ms"] for h in history) / total if total else 0
+    )
+
+    recent_runs = [_search_run_summary(h) for h in history[:5]]
+
+    # Per-collection breakdown, useful as a quality trend placeholder.
+    quality_trend: list[dict] = []
+    if history:
+        bucket_count = 6
+        per_bucket = max(1, len(history) // bucket_count)
+        for i in range(bucket_count):
+            slice_ = history[i * per_bucket : (i + 1) * per_bucket]
+            if not slice_:
+                continue
+            avg = sum(h["top_score"] for h in slice_) / len(slice_)
+            quality_trend.append({
+                "date": slice_[0]["timestamp"][:10],
+                "averageQualityScore": round(avg, 4),
+                "queryCount": len(slice_),
+            })
+
+    return {
+        "totalQueries": total,
+        "acceptedQueries": accepted,
+        "bestEffortQueries": total - accepted,
+        "averageQualityScore": round(avg_quality, 4),
+        "averageAttempts": 1.0,
+        "averageDurationMs": int(avg_duration),
+        "totalIndexedVideos": len(video_ids),
+        "totalCollections": len(collection_ids),
+        "lastUpdatedAt": datetime.now(timezone.utc).isoformat(),
+        "recentRuns": recent_runs,
+        "qualityTrend": quality_trend,
+    }
+
+
+@app.get("/api/history/")
+def history_list(
+    decision: str | None = None,
+    query: str | None = None,
+    limit: int = 100,
+):
+    history = _history.list(limit=limit)
+    entries: list[dict] = []
+    for h in history:
+        if decision and decision != "all":
+            if decision == "accepted" and h["decision"] != "accepted":
+                continue
+            if decision == "best_effort" and h["decision"] != "best_effort":
+                continue
+        if query and query.lower() not in h["query"].lower():
+            continue
+        entries.append(_search_run_summary(h))
+    return {"total": len(entries), "entries": entries}
+
+
+@app.get("/api/analysis/runs")
+def analysis_runs():
+    history = _history.list(limit=200)
+    runs = [_search_run_summary(h) for h in history]
+    return {"total": len(runs), "runs": runs}
+
+
+@app.get("/api/analysis/runs/{run_id}")
+def analysis_run(run_id: str):
+    entry = _history.get(run_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="run not found")
+    return _wrap_search_response(entry)
+
+
+@app.get("/api/evaluation/overview")
+def evaluation_overview():
+    history = _history.list(limit=200)
+    total = len(history)
+    scores = [h["top_score"] for h in history]
+    avg_quality = sum(scores) / total if total else 0.0
+    avg_latency = (
+        sum(h["duration_ms"] for h in history) / total if total else 0
+    )
+
+    buckets = [
+        {"bucket": "< 0.3", "min": 0.0, "max": 0.3, "count": 0},
+        {"bucket": "0.3 - 0.5", "min": 0.3, "max": 0.5, "count": 0},
+        {"bucket": "0.5 - 0.7", "min": 0.5, "max": 0.7, "count": 0},
+        {"bucket": ">= 0.7", "min": 0.7, "max": 1.01, "count": 0},
+    ]
+    for s in scores:
+        for b in buckets:
+            if b["min"] <= s < b["max"]:
+                b["count"] += 1
+                break
+
+    accepted = sum(1 for s in scores if s >= QUALITY_THRESHOLD)
+
+    runs = []
+    for h in history[:20]:
+        runs.append({
+            "id": h["run_id"],
+            "goal": h["goal"],
+            "query": h["query"],
+            "timestamp": h["timestamp"],
+            "qualityScore": h["top_score"],
+            "threshold": QUALITY_THRESHOLD,
+            "attempts": 1,
+            "decision": h["decision"],
+            "resultCount": len(h["results"]),
+            "latencyMs": h["duration_ms"],
+            "collectionIds": h["collection_ids"],
+        })
+
+    return {
+        "totalRuns": total,
+        "averageQuality": round(avg_quality, 4),
+        "averageAttempts": 1.0,
+        "averageLatency": int(avg_latency),
+        "thresholdDefault": QUALITY_THRESHOLD,
+        "decisionDistribution": {
+            "accepted": accepted,
+            "bestEffort": total - accepted,
+        },
+        "qualityDistribution": buckets,
+        "runs": runs,
     }
 
 

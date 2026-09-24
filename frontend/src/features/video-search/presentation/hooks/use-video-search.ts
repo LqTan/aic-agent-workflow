@@ -1,29 +1,24 @@
 "use client";
 import { useMemo, useState } from "react";
 import { VideoSearchResponse, VideoSearchRequest } from "../../domain/models/video-search.model";
-import { searchVideoUseCase } from "../../dependency-injection";
 import { HttpVideoSearchService } from "../../infrastructure/services/video-search.service";
 import { FetchApiClient } from "@/lib/api/fetch-api-client";
 import { SearchVideoUseCase } from "../../application/use-cases/search-videos.use-case";
 
-interface UseVideoSearchOptions {
-    useReal?: boolean;
-}
-
-export function useVideoSearch(options: UseVideoSearchOptions = {}) {
-    const { useReal = false } = options;
+export function useVideoSearch() {
     const [data, setData] = useState<VideoSearchResponse | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<Error | null>(null);
 
-    const useCase = useMemo(() => {
-        if (useReal) {
-            return new SearchVideoUseCase(
+    // Always use the real HttpVideoSearchService backed by the bundled
+    // FastAPI server. Mock data has been removed from the MVP.
+    const useCase = useMemo(
+        () =>
+            new SearchVideoUseCase(
                 new HttpVideoSearchService(new FetchApiClient()),
-            );
-        }
-        return searchVideoUseCase;
-    }, [useReal]);
+            ),
+        [],
+    );
 
     const search = async (
         request: VideoSearchRequest,

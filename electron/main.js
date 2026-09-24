@@ -15,9 +15,15 @@ const isDev = !app.isPackaged;
 // APP_ROOT points at the directory that contains the running exe. In dev
 // that's the repo root (electron/ is one level deep), in packaged builds
 // it's the folder where the user placed clip-search-0.1.0-portable.exe.
+//
+// For *portable* Electron builds the exe extracts itself into %TEMP% at
+// launch, so process.execPath would resolve to that scratch directory and
+// `data/` next to the user-facing exe would be invisible. Electron exposes
+// PORTABLE_EXECUTABLE_DIR specifically for that case — it points back at
+// the real folder the user clicked from. We prefer it whenever it is set.
 const APP_ROOT = isDev
     ? path.dirname(__dirname)
-    : path.dirname(process.execPath);
+    : (process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath));
 
 // In dev we run `python server.py` from the inference/ venv directly.
 // In packaged builds the bundled FastAPI lives at:
