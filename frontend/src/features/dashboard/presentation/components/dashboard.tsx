@@ -33,12 +33,16 @@ function DashboardError({ error }: { error: Error }) {
 export function Dashboard() {
     const { data, isLoading, error } = useDashboardOverview();
 
-    if (isLoading || !data) {
+    if (isLoading) {
         return <DashboardSkeleton />;
     }
 
     if (error) {
         return <DashboardError error={error} />;
+    }
+
+    if (!data) {
+        return <DashboardSkeleton />;
     }
 
     return (

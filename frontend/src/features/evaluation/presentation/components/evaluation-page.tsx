@@ -31,12 +31,16 @@ function EvaluationError({ error }: { error: Error }) {
 export function EvaluationPage() {
     const { data, isLoading, error } = useEvaluationOverview();
 
-    if (isLoading || !data) {
+    if (isLoading) {
         return <EvaluationSkeleton />;
     }
 
     if (error) {
         return <EvaluationError error={error} />;
+    }
+
+    if (!data) {
+        return <EvaluationSkeleton />;
     }
 
     return (

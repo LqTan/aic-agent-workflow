@@ -6,6 +6,8 @@ export class HttpEvaluationService implements EvaluationService {
     constructor(private readonly apiClient: ApiClient) {}
 
     async getOverview(): Promise<EvaluationOverview> {
-        return this.apiClient.request<EvaluationOverview>("/evaluation/overview");
+        return this.apiClient.request<EvaluationOverview>(
+            "/api/evaluation/overview",
+        );
     }
 }

@@ -30,12 +30,16 @@ function ListError({ error }: { error: Error }) {
 export function AnalysisListPage() {
     const { data, isLoading, error } = useAnalysisList();
 
-    if (isLoading || !data) {
+    if (isLoading) {
         return <ListSkeleton />;
     }
 
     if (error) {
         return <ListError error={error} />;
+    }
+
+    if (!data) {
+        return <ListSkeleton />;
     }
 
     return <AnalysisListView runs={data.runs} />;
