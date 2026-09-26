@@ -41,6 +41,28 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
 
 Tắt nhanh backend đang chạy: `backend/scripts/kill_app.sh`.
 
+### Inference server (CLIP ONNX + search index)
+
+`backend/` ở chế độ non-demo (`KIS_DEMO_MODE=false`) sẽ gọi CLIP text encoder để encode query. Model và index nằm ở `inference/`:
+
+```bash
+cd inference
+DATA_ROOT=$PWD/../data INDEX_ROOT=$PWD/../data/search_index \
+  nohup setsid .venv/bin/python server.py </dev/null >/tmp/inference.log 2>&1 &
+```
+
+Chạy foreground để xem log trực tiếp:
+
+```bash
+cd inference
+DATA_ROOT=$PWD/../data INDEX_ROOT=$PWD/../data/search_index \
+  .venv/bin/python server.py
+```
+
+Verify inference đang chạy: `curl http://localhost:9000/health` phải trả `{"status":"ok","runtime_loaded":true,"index_loaded":true,...}`.
+
+Nếu lỗi "ONNX embedding server unavailable" từ backend → inference chưa chạy, hoặc `KIS_EMBEDDING_URL` trong `backend/.env` không trỏ đúng `http://localhost:9000`.
+
 ## Yêu cầu
 
 - Python 3.12, [uv](https://docs.astral.sh/uv/) (`pip install uv` hoặc cài qua Astral)
