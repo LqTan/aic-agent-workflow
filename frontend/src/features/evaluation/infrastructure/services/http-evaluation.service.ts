@@ -7,7 +7,7 @@ export class HttpEvaluationService implements EvaluationService {
 
     async getOverview(): Promise<EvaluationOverview> {
         return this.apiClient.request<EvaluationOverview>(
-            "/api/evaluation/overview",
+            "/evaluation/overview",
         );
     }
 }

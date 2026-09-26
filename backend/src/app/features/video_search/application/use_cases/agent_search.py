@@ -59,6 +59,7 @@ class AgentSearchUseCase:
             "results": [asdict(result) for result in results],
         }
 
+        record_id: str | None = None
         if self._run_repository is not None:
             response_with_results = response.__class__(
                 goal=response.goal,
@@ -71,6 +72,11 @@ class AgentSearchUseCase:
                 results=results,
                 filters_collection_ids=response.filters_collection_ids,
             )
-            await self._run_repository.record_run(request, response_with_results)
+            record_id = await self._run_repository.record_run(
+                request, response_with_results
+            )
+
+        if record_id is not None:
+            payload["id"] = record_id
 
         return payload

@@ -9,6 +9,7 @@ import {
     History,
     LayoutDashboard,
     Search,
+    Workflow,
 } from "lucide-react";
 
 interface NavItem {
@@ -30,6 +31,12 @@ const navItems: NavItem[] = [
         label: "Video Search",
         icon: Search,
         description: "AI Agent search",
+    },
+    {
+        href: "/agent-search",
+        label: "n8n Agent",
+        icon: Workflow,
+        description: "Workflow qua n8n",
     },
     {
         href: "/analysis",

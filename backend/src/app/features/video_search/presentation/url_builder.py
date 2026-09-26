@@ -31,7 +31,11 @@ def build_asset_url_from_request(request: Request, relative_path: str) -> str:
 
 
 def build_asset_url_from_base(base_url: str, relative_path: str) -> str:
-    return f"{base_url.rstrip('/')}/{DEFAULT_ASSET_PATH}/{relative_path.lstrip('/')}"
+    return (
+        f"{base_url.rstrip('/')}/"
+        f"{DEFAULT_ASSET_PATH.lstrip('/')}/"
+        f"{relative_path.lstrip('/')}"
+    )
 
 
 def format_results_with_urls(

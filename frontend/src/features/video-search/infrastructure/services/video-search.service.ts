@@ -11,7 +11,7 @@ export class HttpVideoSearchService implements VideoSearchService {
 
     async search(request: VideoSearchRequest): Promise<VideoSearchResponse> {
         const response = await this.apiClient.request<LocalSearchResponseDto>(
-            "/api/search",
+            "/kis/search/",
             {
                 method: "POST",
                 body: JSON.stringify({

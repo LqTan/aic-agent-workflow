@@ -78,8 +78,8 @@ export class VideoSearchMapper {
     }
 
     /**
-     * Wrap the local FastAPI backend's `/api/search` response (a flat list of
-     * keyframe hits) into the shape the rest of the frontend expects.
+     * Wrap the local FastAPI backend's `/kis/search/` response (a flat list
+     * of keyframe hits) into the shape the rest of the frontend expects.
      */
     static fromLocalSearch(
         dto: LocalSearchResponseDto,

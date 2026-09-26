@@ -7,7 +7,7 @@ export class HttpDashboardService implements DashboardService {
 
     async getOverview(): Promise<DashboardOverview> {
         return this.apiClient.request<DashboardOverview>(
-            "/api/dashboard/overview",
+            "/dashboard/overview",
         );
     }
 }

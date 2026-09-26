@@ -68,7 +68,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://backend:8000/api/v1/kis/tools/planner",
+        "url": "http://172.18.0.1:8000/api/v1/kis/tools/planner",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -77,7 +77,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { query: $('Khởi tạo ngữ cảnh').item.json.current_query, collection_ids: $('Khởi tạo ngữ cảnh').item.json.collection_ids } }}",
+        "jsonBody": "={{ JSON.stringify({ query: $('Khởi tạo ngữ cảnh').item.json.current_query, collection_ids: $('Khởi tạo ngữ cảnh').item.json.collection_ids }) }}",
         "options": {}
       },
       "id": "c0ffee00-0001-4000-8000-000000000002",
@@ -89,7 +89,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://backend:8000/api/v1/kis/tools/retrieval",
+        "url": "http://172.18.0.1:8000/api/v1/kis/tools/retrieval",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -98,7 +98,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { query: $('Khởi tạo ngữ cảnh').item.json.current_query, collection_ids: $('Khởi tạo ngữ cảnh').item.json.collection_ids, top_k: $('Khởi tạo ngữ cảnh').item.json.top_k, enrich_urls: true } }}",
+        "jsonBody": "={{ JSON.stringify({ query: $('Khởi tạo ngữ cảnh').item.json.current_query, collection_ids: $('Khởi tạo ngữ cảnh').item.json.collection_ids, top_k: $('Khởi tạo ngữ cảnh').item.json.top_k, enrich_urls: true }) }}",
         "options": {}
       },
       "id": "c0ffee00-0001-4000-8000-000000000003",
@@ -110,7 +110,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://backend:8000/api/v1/kis/tools/validation",
+        "url": "http://172.18.0.1:8000/api/v1/kis/tools/validation",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -119,7 +119,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { plan: $('Planner tool').item.json.plan, results: $('Retrieval tool').item.json.results, threshold: $('Khởi tạo ngữ cảnh').item.json.quality_threshold } }}",
+        "jsonBody": "={{ JSON.stringify({ plan: $('Planner tool').item.json.plan, results: $('Retrieval tool').item.json.results, threshold: $('Khởi tạo ngữ cảnh').item.json.quality_threshold }) }}",
         "options": {}
       },
       "id": "c0ffee00-0001-4000-8000-000000000004",
@@ -153,7 +153,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://backend:8000/api/v1/kis/agent/search/",
+        "url": "http://172.18.0.1:8000/api/v1/kis/agent/search/",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -162,7 +162,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { query: $('Khởi tạo ngữ cảnh').item.json.current_query, collection_ids: $('Khởi tạo ngữ cảnh').item.json.collection_ids, top_k: $('Khởi tạo ngữ cảnh').item.json.top_k, quality_threshold: $('Khởi tạo ngữ cảnh').item.json.quality_threshold, max_attempts: 1 } }}",
+        "jsonBody": "={{ JSON.stringify({ query: $('Khởi tạo ngữ cảnh').item.json.current_query, collection_ids: $('Khởi tạo ngữ cảnh').item.json.collection_ids, top_k: $('Khởi tạo ngữ cảnh').item.json.top_k, quality_threshold: $('Khởi tạo ngữ cảnh').item.json.quality_threshold, max_attempts: 1 }) }}",
         "options": {}
       },
       "id": "c0ffee00-0001-4000-8000-000000000006",
@@ -174,7 +174,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "=http://backend:8000/api/v1/kis/tools/finalize/{{ $('Persist run (agent)').item.json.id || $('Persist run (agent)').first().json.id }}",
+        "url": "=http://172.18.0.1:8000/api/v1/kis/tools/finalize/{{ $('Persist run (agent)').item.json.id || $('Persist run (agent)').first().json.id }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -217,7 +217,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://backend:8000/api/v1/kis/tools/rewrite",
+        "url": "http://172.18.0.1:8000/api/v1/kis/tools/rewrite",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -226,7 +226,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { plan: $('Planner tool').item.json.plan, attempt: $('Khởi tạo ngữ cảnh').item.json.attempt } }}",
+        "jsonBody": "={{ JSON.stringify({ plan: $('Planner tool').item.json.plan, attempt: $('Khởi tạo ngữ cảnh').item.json.attempt }) }}",
         "options": {}
       },
       "id": "c0ffee00-0001-4000-8000-000000000009",
@@ -264,7 +264,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://backend:8000/api/v1/kis/agent/search/",
+        "url": "http://172.18.0.1:8000/api/v1/kis/agent/search/",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -273,7 +273,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { query: $('Khởi tạo ngữ cảnh').item.json.current_query, collection_ids: $('Khởi tạo ngữ cảnh').item.json.collection_ids, top_k: $('Khởi tạo ngữ cảnh').item.json.top_k, quality_threshold: $('Khởi tạo ngữ cảnh').item.json.quality_threshold, max_attempts: 1 } }}",
+        "jsonBody": "={{ JSON.stringify({ query: $('Khởi tạo ngữ cảnh').item.json.current_query, collection_ids: $('Khởi tạo ngữ cảnh').item.json.collection_ids, top_k: $('Khởi tạo ngữ cảnh').item.json.top_k, quality_threshold: $('Khởi tạo ngữ cảnh').item.json.quality_threshold, max_attempts: 1 }) }}",
         "options": {}
       },
       "id": "c0ffee00-0001-4000-8000-000000000011",
@@ -285,7 +285,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://backend:8000/api/v1/kis/tools/finalize/{{ $('Persist run (best effort)').item.json.id || $('Persist run (best effort)').first().json.id }}",
+        "url": "=http://172.18.0.1:8000/api/v1/kis/tools/finalize/{{ $('Persist run (best effort)').item.json.id || $('Persist run (best effort)').first().json.id }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -321,7 +321,7 @@
       "main": [[{"node": "Khởi tạo ngữ cảnh", "type": "main", "index": 0}]]
     },
     "Khởi tạo ngữ cảnh": {
-      "main": [[{"node": "Planner tool", "type": "main", "index": 0}, {"node": "Retrieval tool", "type": "main", "index": 0}]]
+      "main": [[{"node": "Planner tool", "type": "main", "index": 0}]]
     },
     "Planner tool": {
       "main": [[{"node": "Retrieval tool", "type": "main", "index": 0}]]

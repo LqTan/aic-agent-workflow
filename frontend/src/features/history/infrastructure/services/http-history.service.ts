@@ -15,7 +15,7 @@ export class HttpHistoryService implements HistoryService {
         params.set("limit", "100");
         const query = params.toString();
         return this.apiClient.request<HistoryList>(
-            `/api/history/?${query}`,
+            `/history/?${query}`,
         );
     }
 }

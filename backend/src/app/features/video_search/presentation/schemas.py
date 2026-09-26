@@ -93,6 +93,7 @@ class AgentSearchPlanSchema(BaseModel):
 
 
 class AgentSearchResponseSchema(BaseModel):
+    id: str | None = None
     goal: str
     plan: AgentSearchPlanSchema
     attempts: list[AgentAttemptSchema]

@@ -9,12 +9,12 @@ export class HttpAnalysisService implements AnalysisService {
     constructor(private readonly apiClient: ApiClient) {}
 
     async list(): Promise<AnalysisList> {
-        return this.apiClient.request<AnalysisList>("/api/analysis/runs");
+        return this.apiClient.request<AnalysisList>("/analysis/runs");
     }
 
     async getById(id: string): Promise<AnalysisDetail> {
         return this.apiClient.request<AnalysisDetail>(
-            `/api/analysis/runs/${encodeURIComponent(id)}`,
+            `/analysis/runs/${encodeURIComponent(id)}`,
         );
     }
 }

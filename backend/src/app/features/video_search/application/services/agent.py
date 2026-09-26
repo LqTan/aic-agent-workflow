@@ -26,8 +26,9 @@ SCENE_TERMS = ("street", "indoor", "outdoor", "beach", "airport", "market", "off
 def local_plan(query: str, collection_ids: list[str]) -> SearchPlan:
     normalized = normalize_ascii(query)
     expanded = normalized
-    for source, target in sorted(VI_TO_EN.items(), key=lambda item: -len(item[0])):
-        expanded = _sub_word(expanded, source, target)
+    for source, targets in sorted(VI_TO_EN.items(), key=lambda item: -len(item[0])):
+        for target in targets:
+            expanded = _sub_word(expanded, source, target)
 
     objects = _find_terms(expanded, OBJECT_TERMS)
     actions = _find_terms(expanded, ACTION_TERMS)

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAnalysisList } from "../hooks/use-analysis-list";
+import { AnalysisCharts } from "./analysis-charts";
 import { AnalysisList as AnalysisListView } from "./analysis-list";
 
 function ListSkeleton() {
@@ -42,5 +43,10 @@ export function AnalysisListPage() {
         return <ListSkeleton />;
     }
 
-    return <AnalysisListView runs={data.runs} />;
+    return (
+        <div className="space-y-6">
+            <AnalysisCharts runs={data.runs} />
+            <AnalysisListView runs={data.runs} />
+        </div>
+    );
 }
