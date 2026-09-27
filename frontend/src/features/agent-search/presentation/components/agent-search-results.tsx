@@ -3,9 +3,13 @@ import { AgentResultCard } from "./agent-result-card";
 
 interface AgentSearchResultsProps {
     data: AgentSearchResponse;
+    onSelectVideo?: (videoUrl: string, timestampMs: number) => void;
 }
 
-export function AgentSearchResults({ data }: AgentSearchResultsProps) {
+export function AgentSearchResults({
+    data,
+    onSelectVideo,
+}: AgentSearchResultsProps) {
     if (data.results.length === 0) {
         return (
             <div className="rounded-lg border border-dashed p-8 text-center">
@@ -22,7 +26,7 @@ export function AgentSearchResults({ data }: AgentSearchResultsProps) {
                 <h2 className="text-xl font-semibold">Kết quả từ n8n</h2>
                 <p className="text-sm text-muted-foreground">
                     Tìm thấy {data.resultCount} keyframe trong{" "}
-                    {(data.durationMs / 1000).toFixed(2)}s
+                    {(data.durationMs / 1000).toFixed(2)}s — bấm vào card để xem video
                 </p>
             </div>
 
@@ -31,6 +35,7 @@ export function AgentSearchResults({ data }: AgentSearchResultsProps) {
                     <AgentResultCard
                         key={result.keyframeId}
                         result={result}
+                        onSelect={onSelectVideo}
                     />
                 ))}
             </div>

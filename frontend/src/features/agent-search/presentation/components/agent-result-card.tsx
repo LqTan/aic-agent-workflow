@@ -4,6 +4,7 @@ import type { AgentResult } from "../../domain/models/agent-search.model";
 
 interface AgentResultCardProps {
     result: AgentResult;
+    onSelect?: (videoUrl: string, timestampMs: number) => void;
 }
 
 function formatTimestamp(ms: number): string {
@@ -16,16 +17,48 @@ function formatTimestamp(ms: number): string {
         .join(":");
 }
 
-export function AgentResultCard({ result }: AgentResultCardProps) {
+export function AgentResultCard({ result, onSelect }: AgentResultCardProps) {
+    const handleClick = () => {
+        if (result.videoUrl && onSelect) {
+            onSelect(result.videoUrl, result.timestampMs);
+        }
+    };
+
+    const canPlay = Boolean(result.videoUrl) && Boolean(onSelect);
+
     return (
-        <Card className="overflow-hidden">
+        <Card
+            className={
+                canPlay
+                    ? "overflow-hidden cursor-pointer transition hover:ring-2 hover:ring-primary/40"
+                    : "overflow-hidden"
+            }
+            onClick={canPlay ? handleClick : undefined}
+            role={canPlay ? "button" : undefined}
+            tabIndex={canPlay ? 0 : undefined}
+            onKeyDown={
+                canPlay
+                    ? (event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              handleClick();
+                          }
+                      }
+                    : undefined
+            }
+        >
             <div className="aspect-video overflow-hidden bg-muted">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                    src={result.imageUrl}
-                    alt={`Keyframe ${result.keyframeId}`}
-                    className="h-full w-full object-cover"
-                />
+                {result.imageUrl ? (
+                    <img
+                        src={result.imageUrl}
+                        alt={`Keyframe ${result.keyframeId}`}
+                        className="h-full w-full object-cover"
+                    />
+                ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+                        No preview
+                    </div>
+                )}
             </div>
 
             <CardHeader>

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 
 interface VideoSearchResultCardProps {
     result: VideoSearchResult;
+    onSelect?: (videoUrl: string, timestampMs: number) => void;
 }
 
 function formatTimestamp(timestampMs: number): string {
@@ -17,9 +18,37 @@ function formatTimestamp(timestampMs: number): string {
 
 export function VideoSearchResultCard({
     result,
+    onSelect,
 }: VideoSearchResultCardProps) {
+    const handleClick = () => {
+        if (result.videoUrl && onSelect) {
+            onSelect(result.videoUrl, result.timestampMs);
+        }
+    };
+
+    const canPlay = Boolean(result.videoUrl) && Boolean(onSelect);
+
     return (
-        <Card className="overflow-hidden">
+        <Card
+            className={
+                canPlay
+                    ? "overflow-hidden cursor-pointer transition hover:ring-2 hover:ring-primary/40"
+                    : "overflow-hidden"
+            }
+            onClick={canPlay ? handleClick : undefined}
+            role={canPlay ? "button" : undefined}
+            tabIndex={canPlay ? 0 : undefined}
+            onKeyDown={
+                canPlay
+                    ? (event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              handleClick();
+                          }
+                      }
+                    : undefined
+            }
+        >
             <div className="aspect-video overflow-hidden bg-muted">
                 {result.imageUrl ? (
                     <img
