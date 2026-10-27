@@ -16,6 +16,7 @@ from sqlmodel import SQLModel
 
 from app.core.config import get_settings
 from app.features.search_run.infrastructure.orm import SearchRunORM  # noqa: F401
+from app.shared.db.models import KeyframeORM  # noqa: F401
 
 
 config = context.config

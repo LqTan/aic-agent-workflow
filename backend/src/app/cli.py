@@ -45,11 +45,33 @@ def serve() -> None:
     )
 
 
+def import_manifest() -> None:
+    """Import ``manifest.csv`` into the PostgreSQL keyframes table."""
+    _load_dotenv_once()
+    from app.core.config import get_settings
+    from app.features.data_pipeline.importer import import_manifest_to_db
+    from app.shared.db.session import init_engine, session_scope
+
+    settings = get_settings()
+    init_engine(settings)
+    manifest_path = Path(settings.resolved_data_root()) / "manifest.csv"
+    with next(session_scope()) as session:
+        count = import_manifest_to_db(manifest_path, session, overwrite=True)
+        print(f"Successfully imported {count} keyframes into database from {manifest_path}")
+
+
 def prepare_data() -> None:
-    """Generate ``manifest.csv`` (+ collection.json) under ``./data``."""
+    """Generate ``manifest.csv`` (+ collection.json) under ``./data`` and sync to database."""
     from app.features.data_pipeline.cli import main as pipeline_cli
 
-    raise SystemExit(pipeline_cli(["prepare-data", "--data-root", "./data"]))
+    exit_code = pipeline_cli(["prepare-data", "--data-root", "./data"])
+    if exit_code == 0 or exit_code is None:
+        try:
+            import_manifest()
+        except Exception as exc:
+            print(f"Note: Could not sync to database automatically ({exc}). You can run aic-import-manifest later.")
+    if exit_code:
+        raise SystemExit(exit_code)
 
 
 def build_index() -> None:

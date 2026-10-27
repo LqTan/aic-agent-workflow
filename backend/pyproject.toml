@@ -19,6 +19,8 @@ dependencies = [
     "httpx>=0.27.0",
     "Pillow>=11.0.0",
     "python-dotenv>=1.0.0",
+    "onnxruntime>=1.19.0",
+    "transformers>=4.45.0",
 ]
 
 [project.optional-dependencies]
@@ -36,6 +38,7 @@ dev = [
 [project.scripts]
 aic-dev = "app.cli:serve"
 aic-prepare-data = "app.cli:prepare_data"
+aic-import-manifest = "app.cli:import_manifest"
 aic-build-index = "app.cli:build_index"
 aic-lint = "app.cli:lint"
 aic-test = "app.cli:test"

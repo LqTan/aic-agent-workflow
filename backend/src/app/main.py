@@ -67,6 +67,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def health() -> dict[str, str]:
         return {"status": "ok"}
 
+    @app.post("/embed", tags=["embedding"])
+    @app.post("/api/v1/embed", tags=["embedding"])
+    async def embed_endpoint(payload: dict) -> dict:
+        from fastapi import HTTPException
+        from app.features.search_engine.embedding import get_encoder
+
+        texts = payload.get("texts") or []
+        if not texts or not isinstance(texts, list):
+            raise HTTPException(
+                status_code=400,
+                detail="texts must be a non-empty list of strings",
+            )
+        encoder = get_encoder()
+        vectors = encoder.encode_texts(texts)
+        return {"embeddings": vectors.tolist()}
+
     @app.exception_handler(DomainError)
     async def domain_error_handler(_request, exc: DomainError):  # type: ignore[no-untyped-def]
         from fastapi.responses import JSONResponse

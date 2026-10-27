@@ -17,8 +17,26 @@ _dataset_lock = threading.Lock()
 _dataset_cache: dict[str, tuple[int, list[str]]] = {}
 
 
+def _load_dataset_stats_from_db() -> tuple[int, list[str]] | None:
+    """Fast query from the PostgreSQL keyframes table."""
+    try:
+        from sqlmodel import func, select
+        from app.shared.db.models import KeyframeORM
+        with Session(get_engine()) as session:
+            video_count = session.exec(select(func.count(func.distinct(KeyframeORM.video_id)))).one()
+            if video_count and video_count > 0:
+                collections = session.exec(select(func.distinct(KeyframeORM.collection_id))).all()
+                return int(video_count), sorted(str(c) for c in collections if c)
+    except Exception:
+        pass
+    return None
+
+
 def _load_dataset_stats(manifest_path: Path) -> tuple[int, list[str]]:
-    """Return ``(unique_video_count, sorted_unique_collection_ids)`` from manifest.csv."""
+    """Return ``(unique_video_count, sorted_unique_collection_ids)`` from DB or manifest.csv fallback."""
+    db_stats = _load_dataset_stats_from_db()
+    if db_stats is not None:
+        return db_stats
     if not manifest_path.is_file():
         return 0, []
     video_ids: set[str] = set()

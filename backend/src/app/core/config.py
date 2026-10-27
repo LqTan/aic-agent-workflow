@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     )
 
     database_url: str = Field(
-        default="sqlite:///./data/aic.db",
+        default="postgresql+psycopg://aic:aic@localhost:5433/aic",
         alias="DATABASE_URL",
     )
 
@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     )
 
     kis_embedding_provider: str = Field(
-        default="remote",
+        default="onnx",
         alias="KIS_EMBEDDING_PROVIDER",
     )
 
@@ -55,6 +55,16 @@ class Settings(BaseSettings):
     kis_embedding_api_key: str = Field(
         default="",
         alias="KIS_EMBEDDING_API_KEY",
+    )
+
+    kis_onnx_model_path: Path = Field(
+        default=Path("./models/text_encoder.onnx"),
+        alias="KIS_ONNX_MODEL_PATH",
+    )
+
+    kis_tokenizer_path: Path = Field(
+        default=Path("./models/tokenizer"),
+        alias="KIS_TOKENIZER_PATH",
     )
 
     app_host: str = Field(default="0.0.0.0", alias="APP_HOST")
@@ -84,11 +94,49 @@ class Settings(BaseSettings):
 
     def resolved_data_root(self) -> Path:
         path = Path(self.kis_data_root)
-        return path if path.is_absolute() else (Path.cwd() / path).resolve()
+        if path.is_absolute():
+            return path
+        cwd = Path.cwd()
+        if (cwd / path).exists():
+            return (cwd / path).resolve()
+        if (cwd.parent / path).exists():
+            return (cwd.parent / path).resolve()
+        return (cwd / path).resolve()
 
     def resolved_index_root(self) -> Path:
         path = Path(self.kis_index_root)
-        return path if path.is_absolute() else (Path.cwd() / path).resolve()
+        if path.is_absolute():
+            return path
+        cwd = Path.cwd()
+        if (cwd / path).exists():
+            return (cwd / path).resolve()
+        if (cwd.parent / path).exists():
+            return (cwd.parent / path).resolve()
+        return (cwd / path).resolve()
+
+    def resolved_onnx_model_path(self) -> Path:
+        path = Path(self.kis_onnx_model_path)
+        if path.is_absolute():
+            return path
+        cwd = Path.cwd()
+        if (cwd / path).exists():
+            return (cwd / path).resolve()
+        backend_dir = Path(__file__).resolve().parents[3]
+        if (backend_dir / "models" / "text_encoder.onnx").exists():
+            return (backend_dir / "models" / "text_encoder.onnx").resolve()
+        return (cwd / path).resolve()
+
+    def resolved_tokenizer_path(self) -> Path:
+        path = Path(self.kis_tokenizer_path)
+        if path.is_absolute():
+            return path
+        cwd = Path.cwd()
+        if (cwd / path).exists():
+            return (cwd / path).resolve()
+        backend_dir = Path(__file__).resolve().parents[3]
+        if (backend_dir / "models" / "tokenizer").exists():
+            return (backend_dir / "models" / "tokenizer").resolve()
+        return (cwd / path).resolve()
 
 
 @lru_cache(maxsize=1)

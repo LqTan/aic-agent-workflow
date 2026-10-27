@@ -25,6 +25,10 @@ def init_engine(settings: Settings) -> Engine:
         future=True,
         connect_args=connect_args,
     )
+    # Ensure all ORM models are imported before creating tables
+    from app.features.search_run.infrastructure.orm import SearchRunORM  # noqa: F401
+    from app.shared.db.models import KeyframeORM  # noqa: F401
+
     SQLModel.metadata.create_all(_engine)
     return _engine
 

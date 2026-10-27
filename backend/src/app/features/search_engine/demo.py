@@ -21,12 +21,32 @@ def _real_concepts(video_id: str, frame_id: int) -> set[str]:
     return {label.lower() for label in payload.get("detection_class_entities", [])}
 
 
+_TIMESTAMP_CACHE: dict[str, int] = {}
+
+
 def _frame_ms(video_id: str, frame_id: int) -> int:
-    """Best-effort timestamp lookup from manifest.csv; default 0 if missing."""
+    """Best-effort timestamp lookup from DB (or manifest.csv fallback); default 0 if missing."""
+    keyframe_id = f"{video_id}_{frame_id:06d}"
+    if keyframe_id in _TIMESTAMP_CACHE:
+        return _TIMESTAMP_CACHE[keyframe_id]
+
+    # 1. Try querying the database keyframes table
+    try:
+        from sqlmodel import select
+        from app.shared.db.session import get_engine, Session
+        from app.shared.db.models import KeyframeORM
+        with Session(get_engine()) as session:
+            record = session.exec(select(KeyframeORM).where(KeyframeORM.keyframe_id == keyframe_id)).first()
+            if record is not None:
+                _TIMESTAMP_CACHE[keyframe_id] = record.timestamp_ms
+                return record.timestamp_ms
+    except Exception:
+        pass
+
+    # 2. Fallback to manifest.csv
     manifest = Path(__file__).resolve().parents[5] / "data" / "manifest.csv"
     if not manifest.exists():
         return 0
-    keyframe_id = f"{video_id}_{frame_id:06d}"
     with manifest.open(encoding="utf-8") as handle:
         next(handle)
         for line in handle:
@@ -35,7 +55,9 @@ def _frame_ms(video_id: str, frame_id: int) -> int:
                 continue
             if parts[0] == keyframe_id:
                 try:
-                    return int(parts[6])
+                    ts = int(parts[6])
+                    _TIMESTAMP_CACHE[keyframe_id] = ts
+                    return ts
                 except ValueError:
                     return 0
     return 0
