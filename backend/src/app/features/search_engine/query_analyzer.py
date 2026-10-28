@@ -81,21 +81,6 @@ def best_term_match(candidates: tuple[str, ...] | list[str], target: str) -> flo
     return best
 
 
-def match_terms(
-    analysis: QueryAnalysis,
-    terms: list[str] | tuple[str, ...],
-    *,
-    minimum_score: float = 0.80,
-) -> dict[str, float]:
-    result = {}
-    for term in terms:
-        normalized_term = normalize_text(term)
-        score = best_term_match(analysis.candidates, normalized_term)
-        if score >= minimum_score:
-            result[normalized_term] = score
-    return result
-
-
 def _fuzzy_score(candidate_tokens: list[str], target_tokens: list[str]) -> float:
     if not candidate_tokens or not target_tokens:
         return 0.0

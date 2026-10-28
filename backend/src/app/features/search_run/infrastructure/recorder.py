@@ -44,10 +44,6 @@ def _build_record(
     request: VideoSearchRequest,
     response: VideoSearchResponse,
 ) -> SearchRunRecord:
-    duration_ms = sum(
-        int(attempt.get("result_count", 0)) * 0
-        for attempt in []
-    )
     attempts = len(response.attempts)
     last_attempt_quality = response.attempts[-1].quality_score if response.attempts else 0.0
     last_attempt_count = response.attempts[-1].result_count if response.attempts else 0

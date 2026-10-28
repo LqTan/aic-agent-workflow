@@ -157,6 +157,8 @@ class HybridSearchIndex:
         clip_weight: float = 0.82,
         object_weight: float = 0.12,
         domain_weight: float = 0.06,
+        max_per_video: int = 2,
+        min_time_gap_ms: int = 15_000,
     ) -> list[RankedCandidate]:
         if not positions:
             return []
@@ -186,18 +188,51 @@ class HybridSearchIndex:
             + object_weight * object_scores
             + domain_weight * domain_scores
         )
-        order = np.argsort(-final_scores)[:top_k]
-        return [
-            RankedCandidate(
-                position=positions[int(index)],
+        sorted_indices = np.argsort(-final_scores)
+
+        # Video diversity / deduplication:
+        # Group by video_id, allow at most `max_per_video` (default 2) if timestamps
+        # are at least `min_time_gap_ms` apart.
+        selected: list[RankedCandidate] = []
+        video_timestamps: dict[str, list[int]] = {}
+        backfill: list[RankedCandidate] = []
+
+        for index in sorted_indices:
+            pos = positions[int(index)]
+            record = self.records[pos]
+            vid = record.video_id
+            ts = record.timestamp_ms
+
+            candidate = RankedCandidate(
+                position=pos,
                 score=float(final_scores[index]),
                 clip_score=float(clip_scores[index]),
                 object_score=float(object_scores[index]),
                 domain_score=float(domain_scores[index]),
                 matched_objects=object_matches[int(index)],
             )
-            for index in order
-        ]
+
+            prev_ts_list = video_timestamps.get(vid)
+            if prev_ts_list is None:
+                video_timestamps[vid] = [ts]
+                selected.append(candidate)
+            elif len(prev_ts_list) < max_per_video and all(
+                abs(ts - prev) >= min_time_gap_ms for prev in prev_ts_list
+            ):
+                prev_ts_list.append(ts)
+                selected.append(candidate)
+            else:
+                backfill.append(candidate)
+
+            if len(selected) >= top_k:
+                break
+
+        # If there are fewer distinct videos than top_k, backfill from remaining candidates
+        if len(selected) < top_k:
+            needed = top_k - len(selected)
+            selected.extend(backfill[:needed])
+
+        return selected
 
     def query_object_scores(self, route: Route) -> dict[int, float]:
         object_candidates = (*route.keyword_candidates, *route.expanded_terms)

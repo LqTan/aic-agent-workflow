@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from urllib.parse import urljoin
 
 from fastapi import Request
 
@@ -19,11 +18,6 @@ def normalize_asset_path(asset_path: str) -> Path | None:
     ):
         return None
     return relative
-
-
-def _join(base_url: str, asset_path: str) -> str:
-    """Build a stable absolute URL out of a base + relative path."""
-    return urljoin(base_url.rstrip("/") + "/", asset_path.lstrip("/"))
 
 
 def build_asset_url_from_request(request: Request, relative_path: str) -> str:

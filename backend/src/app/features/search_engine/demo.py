@@ -148,8 +148,33 @@ def search(*, query: str, collection_ids: list[str], top_k: int) -> list[dict]:
         ranked.append((min(score, 0.99), matched, record))
 
     ranked.sort(key=lambda item: (-item[0], item[2]["keyframe_id"]))
+
+    # Video diversity / deduplication: limit frames per video
+    selected_ranked = []
+    video_timestamps: dict[str, list[int]] = {}
+    backfill_ranked = []
+    for item in ranked:
+        score, matched, record = item
+        vid = record["video_id"]
+        ts = int(record.get("timestamp_ms") or 0)
+        prev_ts_list = video_timestamps.get(vid)
+        if prev_ts_list is None:
+            video_timestamps[vid] = [ts]
+            selected_ranked.append(item)
+        elif len(prev_ts_list) < 2 and all(abs(ts - prev) >= 15_000 for prev in prev_ts_list):
+            prev_ts_list.append(ts)
+            selected_ranked.append(item)
+        else:
+            backfill_ranked.append(item)
+
+        if len(selected_ranked) >= top_k:
+            break
+
+    if len(selected_ranked) < top_k:
+        selected_ranked.extend(backfill_ranked[: top_k - len(selected_ranked)])
+
     output = []
-    for rank, (score, matched, record) in enumerate(ranked[:top_k], start=1):
+    for rank, (score, matched, record) in enumerate(selected_ranked[:top_k], start=1):
         output.append(
             {
                 "rank": rank,

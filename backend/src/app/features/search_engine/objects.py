@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
-from collections.abc import Iterable
 from pathlib import Path
 
 from .text import normalize_text
@@ -43,11 +42,6 @@ def resolve_object_file(data_root: Path, video_id: str, keyframe_number: int) ->
         if candidate.is_file():
             return candidate
     return folder / f"{keyframe_number:03d}.json"
-
-
-def build_vocabulary(bags: Iterable[dict[str, float]]) -> tuple[list[str], dict[str, int]]:
-    vocabulary = sorted({term for bag in bags for term in bag})
-    return vocabulary, {term: index for index, term in enumerate(vocabulary)}
 
 
 def _add_term(target: dict[str, float], name: object, score: object, min_score: float) -> None:

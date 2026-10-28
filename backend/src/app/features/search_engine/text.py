@@ -15,12 +15,3 @@ def normalize_text(value: str) -> str:
 
 def tokenize(value: str) -> set[str]:
     return set(normalize_text(value).split())
-
-
-def matched_phrases(normalized_text: str, phrases: list[str]) -> set[str]:
-    padded = f" {normalized_text} "
-    return {
-        phrase
-        for phrase in phrases
-        if phrase and f" {phrase} " in padded
-    }
