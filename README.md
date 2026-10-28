@@ -1,212 +1,130 @@
-# AIC Video Retrieval Platform
+# AIC Video Retrieval & Agentic Search System
 
-Hệ thống tìm kiếm video/keyframe hybrid (`domain routing + object bag-of-words + PCA/R-tree + exact CLIP rerank`) với lớp **Agentic AI**: phân tích truy vấn tiếng Việt, lập kế hoạch, gọi search tool, tự đánh giá Top-K và viết lại truy vấn để tìm lại.
+Hệ thống truy vấn và tìm kiếm video thông minh (Agentic Video Retrieval) phục vụ cuộc thi AI Challenge (AIC). Dự án kết hợp mô hình thị giác CLIP (ONNX), chỉ mục lai (Hybrid Indexing: vector + object Bag-of-Words + domain routing) và giao diện trực quan.
 
-Repo có **hai source song song**:
+---
 
-| Thư mục | Trạng thái | Stack |
-|---|---|---|
-| `backend/` + `frontend/` | **Source chính, đang phát triển** | FastAPI (Python 3.12) + Next.js 16 |
-| `BE/` + `FE/` | Bản Django/React cũ, giữ để tham chiếu | Django 5 + React + Vite |
-| `electron/` | Shell desktop demo, build `.exe` portable | Electron + PyInstaller |
+## 🏗️ Cấu trúc dự án
 
-Hướng dẫn dưới đây chỉ dành cho source chính `backend/` + `frontend/`.
-
-## Chạy dev nhanh (2 terminal)
-
-**Terminal 1 — Backend** (`http://localhost:8000`):
-
-```bash
-cd backend
-uv sync --extra dev
-cp .env.example .env
-uv run aic-dev          # tương đương: uvicorn app.main:app --reload
-```
-
-**Terminal 2 — Frontend** (`http://localhost:3000`):
-
-```bash
-cd frontend
-npm install
-cp .env.local .env.local.template 2>/dev/null || true
-npm run dev
-```
-
-Đảm bảo `frontend/.env.local` có:
-
-```env
-NEXT_PUBLIC_USE_MOCKS=false
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
-```
-
-Tắt nhanh backend đang chạy: `backend/scripts/kill_app.sh`.
-
-### Inference server (CLIP ONNX + search index)
-
-`backend/` ở chế độ non-demo (`KIS_DEMO_MODE=false`) sẽ gọi CLIP text encoder để encode query. Model và index nằm ở `inference/`:
-
-```bash
-cd inference
-DATA_ROOT=$PWD/../data INDEX_ROOT=$PWD/../data/search_index \
-  nohup setsid .venv/bin/python server.py </dev/null >/tmp/inference.log 2>&1 &
-```
-
-Chạy foreground để xem log trực tiếp:
-
-```bash
-cd inference
-DATA_ROOT=$PWD/../data INDEX_ROOT=$PWD/../data/search_index \
-  .venv/bin/python server.py
-```
-
-Verify inference đang chạy: `curl http://localhost:9000/health` phải trả `{"status":"ok","runtime_loaded":true,"index_loaded":true,...}`.
-
-Nếu lỗi "ONNX embedding server unavailable" từ backend → inference chưa chạy, hoặc `KIS_EMBEDDING_URL` trong `backend/.env` không trỏ đúng `http://localhost:9000`.
-
-## Yêu cầu
-
-- Python 3.12, [uv](https://docs.astral.sh/uv/) (`pip install uv` hoặc cài qua Astral)
-- Node.js ≥ 24, npm ≥ 11
-- (Tuỳ chọn) Docker Compose v2 để chạy PostgreSQL + Redis cho dev
-
-## Cấu trúc source chính
+Dự án được tinh gọn thành 2 thành phần chính:
 
 ```text
-backend/
-├── pyproject.toml          # uv project, scripts: aic-dev, aic-prepare-data, aic-build-index, aic-lint, aic-test
-├── alembic/                # migration khi cần version hoá schema
-├── src/app/
-│   ├── core/               # Settings, errors, logging
-│   ├── shared/db/          # SQLModel engine
-│   ├── features/
-│   │   ├── video_search/   # KIS hybrid + agent (router: /kis, /kis/tools)
-│   │   ├── search_run/     # Lưu lịch sử agent run
-│   │   ├── dashboard/      # Tổng quan
-│   │   ├── history/        # Lịch sử truy vấn
-│   │   ├── analysis/       # Phân tích kết quả
-│   │   ├── evaluation/     # Đánh giá chất lượng
-│   │   ├── data_pipeline/  # Scan + manifest + collection
-│   │   └── search_engine/  # BoW, PCA, R-tree, reranker
-│   └── main.py             # FastAPI app, prefix /api/v1
-├── tests/                  # pytest
-├── scripts/kill_app.sh     # tắt nhanh tiến trình aic-dev
-└── .env.example
-
-frontend/
-├── package.json            # scripts: dev, build, start, lint
-├── next.config.ts          # output standalone (dev) / export (Electron)
-├── src/
-│   ├── app/                # Next.js App Router
-│   │   ├── (dashboard)/    # group route: dashboard, search, history, analysis, evaluation
-│   │   └── layout.tsx
-│   ├── components/         # ui + layout dùng chung
-│   ├── config/env.ts       # đọc NEXT_PUBLIC_*
-│   ├── lib/api/            # FetchApiClient + ApiError
-│   └── features/           # vertical slice: video-search, dashboard, history, analysis, evaluation
-└── .env.local
+AIC-main/
+├── backend/            # FastAPI Service (Clean Architecture / DDD)
+│   ├── models/         # Model ONNX CLIP và Tokenizer (In-process inference)
+│   ├── src/app/        # Mã nguồn backend (video_search, search_engine, dashboard...)
+│   └── pyproject.toml  # Cấu hình dependencies của Backend
+├── frontend/           # Next.js 16 (App Router) + React 19 + Tailwind CSS v4
+│   ├── src/            # Giao diện dashboard, search, evaluation, history
+│   └── package.json    # Cấu hình dependencies frontend
+├── data/               # Dữ liệu video, keyframes, clip features và search index
+├── docker/             # Cấu hình Docker Compose (dev và production)
+└── n8n/                # Workflow Agentic Search kết hợp LLM
 ```
 
-## Chạy dev
+---
 
-### 1. Backend
+## 🚀 Hướng dẫn khởi chạy nhanh (Quick Start)
+
+### Yêu cầu môi trường
+- **Python**: `>= 3.12` (khuyên dùng trình quản lý package **`uv`**)
+- **Node.js**: `>= 20` và `npm`
+- **Docker**: Dùng để chạy PostgreSQL và n8n
+
+---
+
+### Bước 1: Khởi động Cơ sở dữ liệu (PostgreSQL)
+
+Chạy container PostgreSQL 17 từ thư mục `docker/dev`:
+
+```bash
+docker compose -f docker/dev/docker-compose.yml up -d db
+```
+*(Cổng mặc định: `5433`, thông tin đăng nhập: `aic:aic`)*
+
+---
+
+### Bước 2: Khởi động Backend (FastAPI - Cổng 8000)
+
+Mở terminal tại thư mục `backend`:
 
 ```bash
 cd backend
-uv sync --extra dev          # cài deps + ruff/pytest
-cp .env.example .env         # tuỳ chỉnh KIS_DEMO_MODE, DATABASE_URL, KIS_LLM_*
+```
 
-# Chế độ demo — không cần dataset AIC, dùng fixture có sẵn
-uv run aic-dev               # uvicorn 0.0.0.0:8000 với --reload
+**Cách 1: Sử dụng `uv` (Nhanh nhất):**
+```bash
+# 1. Cài đặt toàn bộ thư viện cần thiết
+uv sync
 
-# Chế độ production-like — cần dữ liệu AIC thật đã đặt tại ./data
-# (xem docs/SEARCH_PIPELINE.md để biết cấu trúc data/{clip-features-32,keyframes,objects,videos})
-uv run aic-prepare-data      # sinh manifest.csv + collection.json
-uv run aic-build-index       # build R-tree index ở ./data/search_index
+# 2. (Tùy chọn) Nạp metadata 7.800 keyframe từ manifest.csv vào PostgreSQL
+uv run aic-import-manifest
+
+# 3. Chạy server phát triển (hỗ trợ hot-reload)
 uv run aic-dev
 ```
 
-Backend mặc định lắng nghe tại <http://localhost:8000>.
+**Cách 2: Sử dụng Python 3 & pip tiêu chuẩn (cho Windows / máy không dùng `uv`):**
+```bash
+# 1. Tạo và kích hoạt môi trường ảo
+python -m venv .venv
+# Trên Windows: .venv\Scripts\activate
+# Trên Linux:   source .venv/bin/activate
 
-| Đường dẫn | Mục đích |
-|---|---|
-| `/api/health` | Health check |
-| `/docs` | Swagger UI |
-| `/api/v1/kis/search/` | Single-shot hybrid retrieval |
-| `/api/v1/kis/agent/search/` | Agentic retrieval (plan → search → eval → retry) |
-| `/api/v1/kis/search/inspect/` | Inspect router & R-tree candidates |
-| `/api/v1/kis/tools/*` | Planner/rerank/refine cho n8n |
-| `/api/v1/dashboard/*` `/history/*` `/analysis/*` `/evaluation/*` `/runs/*` | Endpoints phụ trợ |
+# 2. Cài đặt dependencies từ pyproject.toml
+pip install -e .
 
-Tắt tiến trình dev đang bật: `./scripts/kill_app.sh`.
+# 3. Chạy server
+python -m uvicorn app.main:app --reload --port 8000
+```
 
-### 2. Frontend
+- API Docs (Swagger): [http://localhost:8000/docs](http://localhost:8000/docs)
+- Health check: [http://localhost:8000/api/health](http://localhost:8000/api/health)
+
+---
+
+### Bước 3: Khởi động Frontend (Next.js - Cổng 3000)
+
+Mở terminal thứ hai tại thư mục `frontend`:
 
 ```bash
 cd frontend
+
+# 1. Cài đặt thư viện giao diện
 npm install
-cp .env.local .env.local.template   # nếu chưa có, tạo file mới với 2 dòng sau
+
+# 2. Khởi động giao diện Next.js
+npm run dev
 ```
 
-Nội dung `.env.local`:
+- Truy cập web: [http://localhost:3000](http://localhost:3000)
 
-```env
-NEXT_PUBLIC_USE_MOCKS=false
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
-```
+---
 
+## 🛠️ Các lệnh CLI hữu ích trong Backend
+
+Trong thư mục `backend/`, bạn có thể chạy nhanh các tác vụ bằng `uv run`:
+
+| Lệnh | Ý nghĩa |
+| :--- | :--- |
+| `uv run aic-dev` | Khởi động server FastAPI ở cổng 8000 với hot-reload |
+| `uv run aic-import-manifest` | Nạp metadata từ `data/manifest.csv` vào bảng `keyframes` trong DB |
+| `uv run aic-prepare-data` | Quét dataset, tạo `manifest.csv` và tự động đồng bộ vào DB |
+| `uv run aic-build-index` | Xây dựng lại search index lai từ dữ liệu trong `data/` |
+| `uv run aic-test` | Chạy bộ kiểm thử tự động (pytest) |
+| `uv run aic-lint` | Kiểm tra định dạng code với Ruff |
+
+---
+
+## ⚙️ Biến môi trường quan trọng (`.env`)
+
+Sao chép từ file mẫu nếu cần tùy biến:
 ```bash
-npm run dev                # next dev
+cp .env.example .env
 ```
 
-Frontend mặc định tại <http://localhost:3000>, gọi API ở `NEXT_PUBLIC_API_BASE_URL`.
-
-### 3. PostgreSQL + Redis cho dev (tuỳ chọn)
-
-Mặc định backend dùng SQLite (`./data/aic.db`). Khi cần Postgres/Redis (Celery, multi-worker):
-
-```bash
-docker compose -f docker/dev/docker-compose.yml up -d db n8n
-# Postgres: localhost:5433 (user/pwd: aic/aic), n8n: localhost:5678
-```
-
-Sửa `backend/.env`:
-
-```env
-DATABASE_URL=postgresql+psycopg://aic:aic@localhost:5433/aic
-```
-
-## Kiểm tra & lint
-
-```bash
-# Backend
-cd backend
-uv run aic-lint            # ruff check src tests
-uv run aic-test            # pytest
-
-# Frontend
-cd frontend
-npm run lint               # eslint
-```
-
-## Biến môi trường đáng chú ý (backend/.env)
-
-| Biến | Mặc định | Ghi chú |
-|---|---|---|
-| `KIS_DEMO_MODE` | `true` | `true` chạy offline với fixture; `false` cần build index thật |
-| `KIS_DATA_ROOT` | `./data` | Thư mục chứa dataset AIC |
-| `KIS_INDEX_ROOT` | `./data/search_index` | Output của `aic-build-index` |
-| `KIS_EMBEDDING_URL` | `http://localhost:9000` | Remote embedding service (khi không dùng demo) |
-| `KIS_LLM_API_KEY` / `KIS_LLM_ENDPOINT` / `KIS_LLM_MODEL` | rỗng | Để trống dùng deterministic planner offline; điền API OpenAI-compatible để bật LLM planner |
-| `APP_CORS_ORIGINS` | `http://localhost:3000` | Thêm origin của frontend nếu chạy khác port |
-| `APP_PUBLIC_BASE_URL` | `http://localhost:8000` | Base URL cho asset keyframe/video trả về |
-
-## Tài liệu liên quan
-
-- Pipeline dữ liệu + build index: [`docs/SEARCH_PIPELINE.md`](./docs/SEARCH_PIPELINE.md)
-- Hướng dẫn demo cuối kỳ: [`docs/MIDTERM_DEMO_GUIDE.md`](./docs/MIDTERM_DEMO_GUIDE.md)
-- Workflow n8n mẫu: `n8n/aic-agent-search.json`
-
-## Quy ước
-
-- Không commit `.env`, secret, dataset, build artifact, `node_modules`, `.venv`.
-- BE/FE/electron giữ để tham khảu; mọi thay đổi mới ưu tiên vào `backend/` + `frontend/`.
+- **`DATABASE_URL`**: Kết nối PostgreSQL (`postgresql+psycopg://aic:aic@localhost:5433/aic`).
+- **`KIS_EMBEDDING_PROVIDER`**: Mặc định là `onnx` (nhúng trực tiếp model CLIP nội bộ trong backend, không cần server inference riêng).
+- **`KIS_DATA_ROOT`**: Đường dẫn tới thư mục chứa dataset (`./data`).
+- **`KIS_INDEX_ROOT`**: Đường dẫn tới index tìm kiếm (`./data/search_index`).
+- **`KIS_LLM_API_KEY` / `KIS_LLM_ENDPOINT`**: Cấu hình LLM Planner (OpenAI-compatible) cho tính năng Agent Search (để trống nếu dùng offline local planner).
